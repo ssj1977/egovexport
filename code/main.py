@@ -41,15 +41,14 @@ class ProjectData:
         self.df_contractor = None
         self.df_contractortype = None
         self.df_contact = None
+        self.df_tasktype = None
+        self.df_project_tasktype = None
 
     def load_db(self, db_path):
         con = sqlite3.connect(db_path)
         self.df_project = pd.read_sql("SELECT * FROM project", con)
         self.df_project.fillna(0, inplace=True)
-        self.df_project = self.df_project.astype({'id': np.int, 'year': np.int, 'price': np.int,
-                            'typeconsulting':np.bool_,'typesystem':np.bool_, 'typetraining':np.bool_,
-                            'typepurchasesw': np.bool_, 'typepurchasehw': np.bool_,'typeothers': np.bool_
-                        })
+        self.df_project = self.df_project.astype({'id': np.int, 'year': np.int, 'price': np.int})
         self.df_project_country = pd.read_sql("SELECT * FROM project_country", con)
         self.df_project_contractor = pd.read_sql("SELECT * FROM project_contractor", con)
         self.df_project_fund = pd.read_sql("SELECT * FROM project_fund", con)
@@ -61,6 +60,8 @@ class ProjectData:
         self.df_contractor = pd.read_sql("SELECT * FROM contractor", con)
         self.df_contractortype = pd.read_sql("SELECT * FROM contractortype", con)
         self.df_contact = pd.read_sql("SELECT * FROM contact", con)
+        self.df_tasktype = pd.read_sql("SELECT * FROM tasktype", con)
+        self.df_project_tasktype = pd.read_sql("SELECT * FROM project_tasktype", con)
         con.close()
 
     def copy(self):
@@ -75,6 +76,8 @@ class ProjectData:
         replica.df_contractor = self.df_contractor.copy()
         replica.df_contractortype = self.df_contractortype.copy()
         replica.df_contact = self.df_contact.copy()
+        replica.df_tasktype = self.df_tasktype.copy()
+        replica.df_project_tasktype = self.df_project_tasktype.copy()
         return replica
 
 
@@ -156,18 +159,23 @@ class MyMain(QMainWindow):
         viewFundTypeAction.setStatusTip('자금유형 보기')
         viewFundTypeAction.triggered.connect(self.event_view_fundtype)
 
+        viewTaskTypeAction = QAction(QIcon('db.png'), '과업유형 보기', self)
+        viewTaskTypeAction.setShortcut('Ctrl+4')
+        viewTaskTypeAction.setStatusTip('과업유형 보기')
+        viewTaskTypeAction.triggered.connect(self.event_view_tasktype)
+
         viewCountryAction = QAction(QIcon('db.png'), '국가 보기', self)
-        viewCountryAction.setShortcut('Ctrl+4')
+        viewCountryAction.setShortcut('Ctrl+5')
         viewCountryAction.setStatusTip('국가 보기')
         viewCountryAction.triggered.connect(self.event_view_country)
 
         viewRegionAction = QAction(QIcon('db.png'), '지역 보기', self)
-        viewRegionAction.setShortcut('Ctrl+5')
+        viewRegionAction.setShortcut('Ctrl+6')
         viewRegionAction.setStatusTip('지역 보기')
         viewRegionAction.triggered.connect(self.event_view_region)
 
         viewContractorTypeAction = QAction(QIcon('db.png'), '기업분류 보기', self)
-        viewContractorTypeAction.setShortcut('Ctrl+6')
+        viewContractorTypeAction.setShortcut('Ctrl+7')
         viewContractorTypeAction.setStatusTip('기업분류 보기')
         viewContractorTypeAction.triggered.connect(self.event_view_contractortype)
 
@@ -189,6 +197,7 @@ class MyMain(QMainWindow):
         menuContractor.addAction(viewContactAction)
         menuEtc = menubar.addMenu('&기타정보')
         menuEtc.addAction(viewFundTypeAction)
+        menuEtc.addAction(viewTaskTypeAction)
         menuEtc.addAction(viewCountryAction)
         menuEtc.addAction(viewRegionAction)
         menuEtc.addAction(viewContractorTypeAction)
@@ -255,12 +264,14 @@ class MyMain(QMainWindow):
             data.df_project_country.to_sql('project_country', con, if_exists='replace', index=False)
             data.df_project_contractor.to_sql('project_contractor', con, if_exists='replace', index=False)
             data.df_project_fund.to_sql('project_fund', con, if_exists='replace', index=False)
+            data.df_project_tasktype.to_sql('project_tasktype', con, if_exists='replace', index=False)
             data.df_contractor.to_sql('contractor', con, if_exists='replace', index=False)
             data.df_contact.to_sql('contact', con, if_exists='replace', index=False)
             #data.df_fundtype.to_sql('fundtype', con, if_exists='replace', index=False)
             #data.df_country.to_sql('country', con, if_exists='replace', index=False)
             #data.df_region.to_sql('region', con, if_exists='replace', index=False)
             #data.df_contractortype.to_sql('contractortype', con, if_exists='replace', index=False)
+            #data.df_tasktype.to_sql('tasktype', con, if_exists='replace', index=False)
             con.close()
         except Exception as err:
             ShowWarning(self, str(err))
@@ -289,6 +300,10 @@ class MyMain(QMainWindow):
         dlg = ModalEditorDialog(self, 'fundtype')
         dlg.exec_()
 
+    def event_view_tasktype(self):
+        dlg = ModalEditorDialog(self, 'tasktype')
+        dlg.exec_()
+
     def event_view_region(self):
         dlg = ModalEditorDialog(self, 'region')
         dlg.exec_()
@@ -312,7 +327,7 @@ class ProjectTableWidget(QTableWidget):
         self.verticalHeader().setStyleSheet("::section{Background-color:rgb(195,220,235);}")
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        column_headers = ['코드', '사업명', '귀속년도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '사업유형', '영문사업명', '비고']
+        column_headers = ['코드', '사업명', '귀속년도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
         column_widths = [40, 200, 60, 100, 100, 100, 100, 80, 80, 100, 150, 100]
         self.setHorizontalHeaderLabels(column_headers)
         for index in range(0, len(column_widths)):
@@ -353,21 +368,9 @@ class ProjectTableWidget(QTableWidget):
         self.setItem(row_index, 6, self.GetContractor(row['id'], data))
         self.setItem(row_index, 7, GetColItem(row['startdate']))
         self.setItem(row_index, 8, GetColItem(row['enddate']))
-        self.setItem(row_index, 9, self.GetProjectType(row))
+        self.setItem(row_index, 9, self.GetTaskType(row['id'], data))
         self.setItem(row_index, 10, GetColItem(row['nameeng']))
         self.setItem(row_index, 11, GetColItem(row['memo']))
-
-    def GetProjectType(self, row):
-        type = ''
-        type += '컨설팅/' if row['typeconsulting'] == True else ''
-        type += '구축/' if row['typesystem'] == True else ''
-        type += '연수/' if row['typetraining'] == True else ''
-        type += 'SW구매/' if row['typepurchasesw'] == True else ''
-        type += 'HW구매/' if row['typepurchasehw'] == True else ''
-        type += '기타/' if row['typeothers'] == True else ''
-        if type != '':
-            type=type[:-1]
-        return GetColItem(type);
 
     def GetNames(self, df):
         names = ''
@@ -375,7 +378,7 @@ class ProjectTableWidget(QTableWidget):
             names += row['name'] + '/'
         if names != '':
             names = names[:-1]
-        return GetColItem(names);
+        return GetColItem(names)
 
     def GetCountry(self, project_id, data):
         df_merged = pd.merge(data.df_project_country, data.df_country, left_on='country_id', right_on='id')[['project_id', 'name']]
@@ -392,6 +395,11 @@ class ProjectTableWidget(QTableWidget):
         df_selected = df_merged.query('project_id == {}'.format(project_id))
         return self.GetNames(df_selected)
 
+    def GetTaskType(self, project_id, data):
+        df_merged = pd.merge(data.df_project_tasktype, data.df_tasktype, left_on='tasktype_id', right_on='id')[['project_id', 'name']]
+        df_selected = df_merged.query('project_id == {}'.format(project_id))
+        return self.GetNames(df_selected)
+
     def add_project(self):
         dlg = ProjectFormDialog(self, None)
         if dlg.exec_() == QDialog.Accepted:
@@ -399,6 +407,7 @@ class ProjectTableWidget(QTableWidget):
             self.projectData.df_project_country = dlg.projectData.df_project_country
             self.projectData.df_project_contractor = dlg.projectData.df_project_contractor
             self.projectData.df_project_fund = dlg.projectData.df_project_fund
+            self.projectData.df_project_tasktype = dlg.projectData.df_project_tasktype
             row = self.projectData.df_project[self.projectData.df_project['id'] == dlg.project_id].iloc[0]
             new_row_index = self.rowCount()
             self.insertRow(new_row_index)
@@ -412,6 +421,7 @@ class ProjectTableWidget(QTableWidget):
             self.projectData.df_project_country = dlg.projectData.df_project_country
             self.projectData.df_project_contractor = dlg.projectData.df_project_contractor
             self.projectData.df_project_fund = dlg.projectData.df_project_fund
+            self.projectData.df_project_tasktype = dlg.projectData.df_project_tasktype
             row = self.projectData.df_project[self.projectData.df_project['id'] == dlg.project_id].iloc[0]
             self.updateRow(row_index, row)
 
@@ -429,6 +439,10 @@ class ProjectTableWidget(QTableWidget):
         df_temp = self.projectData.df_project_fund
         index = df_temp.query('project_id == {}'.format(project_id)).index
         self.projectData.df_project_fund = df_temp.drop(index)
+        # 과업유형 목록
+        df_temp = self.projectData.df_project_tasktype
+        index = df_temp.query('project_id == {}'.format(project_id)).index
+        self.projectData.df_project_tasktype = df_temp.drop(index)
         # 사업 데이터 본체
         df_temp = self.projectData.df_project
         index = df_temp.query('id == {}'.format(project_id)).index
@@ -464,12 +478,6 @@ class ProjectFormDialog(QDialog):
         self.ui_price.setValidator(QIntValidator(0, 999999999))
         self.ui_startdate = QDateEdit(calendarPopup=True)
         self.ui_enddate = QDateEdit(calendarPopup=True)
-        self.ui_typeconsulting = QCheckBox('컨설팅')
-        self.ui_typesystem = QCheckBox('구축')
-        self.ui_typetraining = QCheckBox('연수')
-        self.ui_typepurchasesw = QCheckBox('SW구매')
-        self.ui_typepurchasehw = QCheckBox('HW구매')
-        self.ui_typeothers = QCheckBox('기타유형')
         self.ui_nameeng = QLineEdit()
         self.ui_memo = QLineEdit()
         self.ui_countries = QListWidget()
@@ -496,6 +504,15 @@ class ProjectFormDialog(QDialog):
         self.ui_fundtypes_del = QPushButton("삭제")
         self.ui_fundtypes_add.clicked.connect(self.event_btn_addFundType)
         self.ui_fundtypes_del.clicked.connect(self.event_btn_delFundType)
+        self.ui_tasktypes = QListWidget()
+        self.ui_tasktypes.setFlow(0)
+        self.ui_tasktypes.setWrapping(True)
+        self.ui_tasktypes.setMinimumHeight(40)
+        self.ui_tasktypes_add = QPushButton("추가...")
+        self.ui_tasktypes_del = QPushButton("삭제")
+        self.ui_tasktypes_add.clicked.connect(self.event_btn_addTaskType)
+        self.ui_tasktypes_del.clicked.connect(self.event_btn_delTaskType)
+        print(3)
         # Initialize UI Objects for Dialog Ok/Cancel Buttons
         self.ui_ok = QPushButton("저장")
         self.ui_ok.setMinimumHeight(30)
@@ -539,13 +556,10 @@ class ProjectFormDialog(QDialog):
         grid.addWidget(self.ui_fundtypes_add, gr, 5, 1, 1)
         grid.addWidget(self.ui_fundtypes_del, gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('사업유형'), gr, 0, 1, 1)
-        grid.addWidget(self.ui_typeconsulting, gr, 1, 1, 1, Qt.AlignHCenter)
-        grid.addWidget(self.ui_typesystem, gr, 2, 1, 1, Qt.AlignHCenter)
-        grid.addWidget(self.ui_typetraining, gr, 3, 1, 1, Qt.AlignHCenter)
-        grid.addWidget(self.ui_typepurchasesw, gr, 4, 1, 1, Qt.AlignHCenter)
-        grid.addWidget(self.ui_typepurchasehw, gr, 5, 1, 1, Qt.AlignHCenter)
-        grid.addWidget(self.ui_typeothers, gr, 6, 1, 1, Qt.AlignHCenter)
+        grid.addWidget(QLabel('과업유형'), gr, 0, 1, 1)
+        grid.addWidget(self.ui_tasktypes, gr, 1, 1, 4)
+        grid.addWidget(self.ui_tasktypes_add, gr, 5, 1, 1)
+        grid.addWidget(self.ui_tasktypes_del, gr, 6, 1, 1)
         gr += 1
         grid.addWidget(QLabel('영문명칭'), gr, 0, 1, 1)
         grid.addWidget(self.ui_nameeng, gr, 1, 1, 6)
@@ -582,6 +596,8 @@ class ProjectFormDialog(QDialog):
                 df_temp = self.projectData.df_project_contractor
             elif item_type == 'fundtype':
                 df_temp = self.projectData.df_project_fund
+            elif item_type == 'tasktype':
+                df_temp = self.projectData.df_project_tasktype
             else:
                 return
             if df_temp.query('{}_id == {} and project_id == {}'.format(item_type, item_id, self.project_id)).empty: # 중복 거르기
@@ -597,6 +613,8 @@ class ProjectFormDialog(QDialog):
                     self.projectData.df_project_contractor = df_temp
                 elif item_type == 'fundtype':
                     self.projectData.df_project_fund = df_temp
+                elif item_type == 'tasktype':
+                    self.projectData.df_project_tasktype = df_temp
                 self.loadItemList(item_type)
 
     def delItem(self, item_type):
@@ -609,6 +627,9 @@ class ProjectFormDialog(QDialog):
         elif item_type == 'fundtype':
             ui = self.ui_fundtypes
             df_temp = self.projectData.df_project_fund
+        elif item_type == 'tasktype':
+            ui = self.ui_tasktypes
+            df_temp = self.projectData.df_project_tasktype
         else:
             return
         items = ui.selectedItems()
@@ -620,6 +641,8 @@ class ProjectFormDialog(QDialog):
                 self.projectData.df_project_contractor = df_temp.drop(index)
             elif item_type == 'fundtype':
                 self.projectData.df_project_fund = df_temp.drop(index)
+            elif item_type == 'tasktype':
+                self.projectData.df_project_tasktype = df_temp.drop(index)
         self.loadItemList(item_type)
 
     def event_btn_addCountry(self):
@@ -634,6 +657,10 @@ class ProjectFormDialog(QDialog):
         self.addItem('fundtype')
     def event_btn_delFundType(self):
         self.delItem('fundtype')
+    def event_btn_addTaskType(self):
+        self.addItem('tasktype')
+    def event_btn_delTaskType(self):
+        self.delItem('tasktype')
 
     def loadItemList(self, item_type):
         data = self.projectData
@@ -654,6 +681,11 @@ class ProjectFormDialog(QDialog):
             df_temp1 = data.df_project_fund
             df_temp2 = data.df_fundtype
             col_retrieve = ['project_id', item_id_col, 'name', 'amount']
+        elif item_type == 'tasktype':
+            ui = self.ui_tasktypes
+            df_temp1 = data.df_project_tasktype
+            df_temp2 = data.df_tasktype
+            col_retrieve = ['project_id', item_id_col, 'name']
         else:
             return
         ui.clear()
@@ -688,18 +720,7 @@ class ProjectFormDialog(QDialog):
         self.loadItemList('country')
         self.loadItemList('contractor')
         self.loadItemList('fundtype')
-        if not np.isnan(project['typeconsulting']):
-            self.ui_typeconsulting.setChecked(project['typeconsulting'])
-        if not np.isnan(project['typesystem']):
-            self.ui_typesystem.setChecked(project['typesystem'])
-        if not np.isnan(project['typetraining']):
-            self.ui_typetraining.setChecked(project['typetraining'])
-        if not np.isnan(project['typepurchasesw']):
-            self.ui_typepurchasesw.setChecked(project['typepurchasesw'])
-        if not np.isnan(project['typepurchasehw']):
-            self.ui_typepurchasehw.setChecked(project['typepurchasehw'])
-        if not np.isnan(project['typeothers']):
-            self.ui_typeothers.setChecked(project['typeothers'])
+        self.loadItemList('tasktype')
         if project['nameeng']:
             self.ui_nameeng.setText(str(project['nameeng']))
         if project['memo']:
@@ -727,21 +748,11 @@ class ProjectFormDialog(QDialog):
             return False
         startdate = self.ui_startdate.date().toString(Qt.ISODate)
         enddate = self.ui_enddate.date().toString(Qt.ISODate)
-        typeconsulting = self.ui_typeconsulting.isChecked()
-        typesystem = self.ui_typesystem.isChecked()
-        typetraining = self.ui_typetraining.isChecked()
-        typepurchasesw = self.ui_typepurchasesw.isChecked()
-        typepurchasehw = self.ui_typepurchasehw.isChecked()
-        typeothers = self.ui_typeothers.isChecked()
         nameeng = self.ui_nameeng.text()
         memo = self.ui_memo.text()
         df_update = pd.DataFrame(
             {'id': [project_id], 'name': [name], 'year': [year], 'price': [price],
-             'startdate': [startdate], 'enddate': [enddate],
-             'typeconsulting': [typeconsulting], 'typesystem': [typesystem], 'typetraining': [typetraining],
-             'typepurchasesw': [typepurchasesw], 'typepurchasehw': [typepurchasehw], 'typeothers': [typeothers],
-             'nameeng': [nameeng], 'memo': [memo]
-             })
+             'startdate': [startdate], 'enddate': [enddate], 'nameeng': [nameeng], 'memo': [memo]})
         if self.add_new:  # 추가
             self.projectData.df_project = self.projectData.df_project.append(df_update, ignore_index=True)
         else:  # 수정
@@ -802,6 +813,10 @@ class AddListItemDialog(QDialog):
             self.ui_combo_label.setText("자금유형")
             self.ui_number_label.setText("금액(USD)")
             self.loadItems(self.projectData.df_fundtype, False)
+        elif self.itemType == 'tasktype':
+            self.setWindowTitle("과업유형 추가")
+            self.ui_combo_label.setText("과업유형")
+            self.loadItems(self.projectData.df_tasktype)
 
     def loadItems(self, data, sort_by_name=True):
         if sort_by_name:
@@ -852,6 +867,9 @@ class ModalEditorTableWidget(QTableWidget):
         elif self.table_type == 'contractortype':
             column_headers = ['', '코드', '분류', '참조회수']
             column_widths = [15, 40, 100, 60]
+        elif self.table_type == 'tasktype':
+            column_headers = ['', '코드', '유형', '참조회수']
+            column_widths = [15, 40, 100, 60]
 
         self.setRowCount(0)
         self.setColumnCount(len(column_headers))
@@ -896,6 +914,8 @@ class ModalEditorTableWidget(QTableWidget):
             return self.tempData.df_region
         elif self.table_type == 'contractortype':
             return self.tempData.df_contractortype
+        elif self.table_type == 'tasktype':
+            return self.tempData.df_tasktype
         else:
             return None
 
@@ -912,6 +932,8 @@ class ModalEditorTableWidget(QTableWidget):
             self.tempData.df_region = df_temp
         elif self.table_type == 'contractortype':
             self.tempData.df_contractortype = df_temp
+        elif self.table_type == 'tasktype':
+            self.tempData.df_tasktype = df_temp
 
     def init_combo_type(self, cb):
         if self.table_type == 'contractor':
@@ -920,6 +942,8 @@ class ModalEditorTableWidget(QTableWidget):
             data = self.tempData.df_contractor  # 소속업체
         elif self.table_type == 'country':
             data = self.tempData.df_region   # 지역
+        elif self.table_type == 'tasktype':
+            data = self.tempData.df_tasktype  # 지역
         for index, row in data.iterrows():
             newIndex = cb.count()
             cb.addItem(row['name'])
@@ -994,6 +1018,10 @@ class ModalEditorTableWidget(QTableWidget):
             df_temp = self.tempData.df_contractor
             reference_counter = len(df_temp[df_temp['type'] == row['id']].index)  # 사업과 연결된 회수
             self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
+        elif self.table_type == 'tasktype':
+            df_temp = self.tempData.df_project_tasktype
+            reference_counter = len(df_temp[df_temp['tasktype_id'] == row['id']].index)  # 사업과 연결된 회수
+            self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
 
     def add_new_row(self):
         new_row_index = self.rowCount()
@@ -1011,7 +1039,7 @@ class ModalEditorTableWidget(QTableWidget):
             values = {'id': new_id, 'name': '', 'phone': '', 'email': '', 'address': '',
                       'contractor_id': 0, 'updatedate':QDate.currentDate().toString(Qt.ISODate)}
             types = {'id': np.int, 'contractor_id': np.int}
-        elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype':
+        elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == 'tasktype' :
             values = {'id': new_id, 'name': ''}
             types = {'id': np.int}
         elif self.table_type == 'country':
@@ -1039,7 +1067,7 @@ class ModalEditorTableWidget(QTableWidget):
             bool_delete = check_box.isChecked()
             if bool_delete == True:
                 # 다른 데이터에서 참조되고 있는 값의 경우 삭제하지 않음
-                ref_counter_col = {'contractor': 6, 'contact': -1, 'fundtype': 3, 'country': 4, 'region': 3, 'contractortype': 3}
+                ref_counter_col = {'contractor': 6, 'contact': -1, 'fundtype': 3, 'country': 4, 'region': 3, 'contractortype': 3, 'tasktype': 3}
                 if ref_counter_col != -1:
                     if int(self.item(row_index, ref_counter_col[self.table_type]).text()) > 0:
                         bool_delete = False
@@ -1125,7 +1153,7 @@ class ModalEditorTableWidget(QTableWidget):
                     df_update = df_temp
                 else:
                     df_update = df_update.append(df_temp, ignore_index=True).astype({'id': np.int, 'region_id': np.int})
-            elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype':
+            elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == "tasktype":
                 df_temp = pd.DataFrame({'id': [id], 'name': [name]})
                 if df_update is None:
                     df_update = df_temp
@@ -1177,6 +1205,8 @@ class ModalEditorDialog(QDialog):
         elif self.table_type == 'contact':
             self.setWindowTitle('사업자 연락처')
         elif self.table_type == 'fundtype':
+            self.setWindowTitle('자금 유형')
+        elif self.table_type == 'tasktype':
             self.setWindowTitle('자금 유형')
         elif self.table_type == 'country':
             self.setWindowTitle('국가 목록')
