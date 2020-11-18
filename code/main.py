@@ -512,7 +512,6 @@ class ProjectFormDialog(QDialog):
         self.ui_tasktypes_del = QPushButton("삭제")
         self.ui_tasktypes_add.clicked.connect(self.event_btn_addTaskType)
         self.ui_tasktypes_del.clicked.connect(self.event_btn_delTaskType)
-        print(3)
         # Initialize UI Objects for Dialog Ok/Cancel Buttons
         self.ui_ok = QPushButton("저장")
         self.ui_ok.setMinimumHeight(30)
