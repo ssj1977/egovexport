@@ -1,17 +1,19 @@
-# dgovexport_DB_ERD.pdf
+# egovexport_DB_ERD.pdf
 DB의 구조를 설명한 Entity-Relationship Diagram 입니다.
 테이블과 테이블 내 항목에 대한 설명과 관계도가 표현되어 있습니다.
 각 항목별 형식(Data Type)을 포함한 테이블 구조는
-아래 dgovexport.db 파일에 미리 만들어져 있으며, 
+아래 egovexport.db 파일에 미리 만들어져 있으며, 
 이 테이블에 값을 넣을 수 있게 해주시면 됩니다.
 
-# dgovexport_DB_ERD.drawio
+# egovexport_DB_ERD.drawio
 https://app.diagrams.net/
 위 PDF 파일을 생성하기 위해 사용한 편집가능 원본입니다.
 웹브라우저에서 위의 링크를 열면 해당 파일을 열람 및 편집할 수 있는
 웹 기반 프로그램을 사용할 수 있습니다.
 
-# dgovexport.db
-SQLite (https://www.sqlite.org/)를 활용하에 제작된 DB입니다.
+# egovexport.db
+SQLite (https://www.sqlite.org/)를 활용해서 제작된 DB입니다.
 DB 편집 및 데이터 열람/입력/수정은 
 SQLiteStudio (https://sqlitestudio.pl/) 라는 프로그램으로 가능합니다.
+
+* 전자정부 수출실적 DB 편집을 위한 별도의 전용 프로그램을 제공할 계획입니다
