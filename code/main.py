@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, QSize, QDate
 import sqlite3
 import pandas as pd
 import numpy as np
+import os.path
 
 # Common Functions
 def ShowWarning(self, msg):
@@ -44,25 +45,38 @@ class ProjectData:
         self.df_tasktype = None
         self.df_project_tasktype = None
 
-    def load_db(self, db_path):
-        con = sqlite3.connect(db_path)
-        self.df_project = pd.read_sql("SELECT * FROM project", con)
-        self.df_project.fillna(0, inplace=True)
-        self.df_project = self.df_project.astype({'id': np.int, 'year': np.int, 'price': np.int})
-        self.df_project_country = pd.read_sql("SELECT * FROM project_country", con)
-        self.df_project_contractor = pd.read_sql("SELECT * FROM project_contractor", con)
-        self.df_project_fund = pd.read_sql("SELECT * FROM project_fund", con)
-        self.df_project_fund.fillna(0, inplace=True)
-        self.df_project_fund = self.df_project_fund.astype({'amount': np.int})
-        self.df_country = pd.read_sql("SELECT * FROM country", con)
-        self.df_region = pd.read_sql("SELECT * FROM region", con)
-        self.df_fundtype = pd.read_sql("SELECT * FROM fundtype", con)
-        self.df_contractor = pd.read_sql("SELECT * FROM contractor", con)
-        self.df_contractortype = pd.read_sql("SELECT * FROM contractortype", con)
-        self.df_contact = pd.read_sql("SELECT * FROM contact", con)
-        self.df_tasktype = pd.read_sql("SELECT * FROM tasktype", con)
-        self.df_project_tasktype = pd.read_sql("SELECT * FROM project_tasktype", con)
-        con.close()
+    def is_ready(self):
+        if self.df_project is None:
+            return False
+        return True
+
+    def load_data(self, db_path):
+        try:
+            db_path = os.path.abspath(db_path)
+            if not os.path.isfile(db_path):
+                return db_path + ": 파일을 찾을 수 없습니다."
+            con = sqlite3.connect(db_path)
+            self.df_project = pd.read_sql("SELECT * FROM project", con)
+            self.df_project.fillna(0, inplace=True)
+            self.df_project = self.df_project.astype({'id': np.int, 'year': np.int, 'price': np.int})
+            self.df_project_country = pd.read_sql("SELECT * FROM project_country", con)
+            self.df_project_contractor = pd.read_sql("SELECT * FROM project_contractor", con)
+            self.df_project_fund = pd.read_sql("SELECT * FROM project_fund", con)
+            self.df_project_fund.fillna(0, inplace=True)
+            self.df_project_fund = self.df_project_fund.astype({'amount': np.int})
+            self.df_country = pd.read_sql("SELECT * FROM country", con)
+            self.df_region = pd.read_sql("SELECT * FROM region", con)
+            self.df_fundtype = pd.read_sql("SELECT * FROM fundtype", con)
+            self.df_contractor = pd.read_sql("SELECT * FROM contractor", con)
+            self.df_contractortype = pd.read_sql("SELECT * FROM contractortype", con)
+            self.df_contact = pd.read_sql("SELECT * FROM contact", con)
+            self.df_tasktype = pd.read_sql("SELECT * FROM tasktype", con)
+            self.df_project_tasktype = pd.read_sql("SELECT * FROM project_tasktype", con)
+            con.close()
+        except Exception as err:
+            self.df_project = None
+            return str(err)
+        return ''
 
     def copy(self):
         replica = ProjectData()
@@ -107,140 +121,65 @@ class MyMain(QMainWindow):
         self.db_path = 'egovexport.db'
         self.init_ui()
 
+    def add_command_ui(self, ui_id, ui_icon, ui_text, ui_hotkey, ui_func, ui_menu, ui_toolbar):
+        tempAction = QAction(QIcon(ui_icon), ui_text, self)
+        tempAction.setShortcut(ui_hotkey)
+        tempAction.setStatusTip(ui_text)
+        tempAction.triggered.connect(ui_func)
+        tempAction.setData(ui_id)
+        if ui_menu is not None:
+            ui_menu.addAction(tempAction)
+        if ui_toolbar is not None:
+            ui_toolbar.addAction(tempAction)
+
     def init_ui(self):
         self.projectTableWidget = ProjectTableWidget(self)
-        loadAction = QAction(QIcon('load.png'), '불러오기', self)
-        loadAction.setShortcut('Ctrl+l')
-        loadAction.setStatusTip('불러오기')
-        loadAction.triggered.connect(self.event_load_db)
-
-        saveAction = QAction(QIcon('save.png'), '저장하기', self)
-        saveAction.setShortcut('Ctrl+s')
-        saveAction.setStatusTip('저장하기')
-        saveAction.triggered.connect(self.event_save_db)
-
-        exitAction = QAction(QIcon('exit.png'), '종료', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('종료')
-        exitAction.triggered.connect(qApp.quit)
-        
-        addItemAction = QAction(QIcon('add.png'), '추가', self)
-        addItemAction.setShortcut('Ctrl+a')
-        addItemAction.setStatusTip('항목 추가')
-        addItemAction.triggered.connect(self.projectTableWidget.add_project)
-        
-        editItemAction = QAction(QIcon('edit.png'), '수정', self)
-        editItemAction.setShortcut('Ctrl+e')
-        editItemAction.setStatusTip('항목 수정')
-        editItemAction.triggered.connect(self.projectTableWidget.event_edit)
-        
-        delItemAction = QAction(QIcon('delete.png'), '삭제', self)
-        delItemAction.setShortcut('Ctrl+d')
-        delItemAction.setStatusTip('항목 삭제')
-        delItemAction.triggered.connect(self.projectTableWidget.event_delete)
-
-        refreshAction = QAction(QIcon('refresh.png'), '새로고침', self)
-        refreshAction.setShortcut('Ctrl+r')
-        refreshAction.setStatusTip('새로고침')
-        refreshAction.triggered.connect(self.refresh_data)
-
-        viewContractorAction = QAction(QIcon('db.png'), '사업자 보기', self)
-        viewContractorAction.setShortcut('Ctrl+1')
-        viewContractorAction.setStatusTip('사업자 보기')
-        viewContractorAction.triggered.connect(self.event_view_contractor)
-
-        viewContactAction = QAction(QIcon('db.png'), '연락처 보기', self)
-        viewContactAction.setShortcut('Ctrl+2')
-        viewContactAction.setStatusTip('연락처 보기')
-        viewContactAction.triggered.connect(self.event_view_contact)
-
-        viewFundTypeAction = QAction(QIcon('db.png'), '자금유형 보기', self)
-        viewFundTypeAction.setShortcut('Ctrl+3')
-        viewFundTypeAction.setStatusTip('자금유형 보기')
-        viewFundTypeAction.triggered.connect(self.event_view_fundtype)
-
-        viewTaskTypeAction = QAction(QIcon('db.png'), '과업유형 보기', self)
-        viewTaskTypeAction.setShortcut('Ctrl+4')
-        viewTaskTypeAction.setStatusTip('과업유형 보기')
-        viewTaskTypeAction.triggered.connect(self.event_view_tasktype)
-
-        viewCountryAction = QAction(QIcon('db.png'), '국가 보기', self)
-        viewCountryAction.setShortcut('Ctrl+5')
-        viewCountryAction.setStatusTip('국가 보기')
-        viewCountryAction.triggered.connect(self.event_view_country)
-
-        viewRegionAction = QAction(QIcon('db.png'), '지역 보기', self)
-        viewRegionAction.setShortcut('Ctrl+6')
-        viewRegionAction.setStatusTip('지역 보기')
-        viewRegionAction.triggered.connect(self.event_view_region)
-
-        viewContractorTypeAction = QAction(QIcon('db.png'), '기업분류 보기', self)
-        viewContractorTypeAction.setShortcut('Ctrl+7')
-        viewContractorTypeAction.setStatusTip('기업분류 보기')
-        viewContractorTypeAction.triggered.connect(self.event_view_contractortype)
 
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         menuDB = menubar.addMenu('&데이터베이스')
-        menuDB.addAction(loadAction)
-        menuDB.addAction(saveAction)
-        menuDB.addSeparator()
-        menuDB.addAction(exitAction)
         menuProject = menubar.addMenu('&사업 정보')
-        menuProject.addAction(addItemAction)
-        menuProject.addAction(editItemAction)
-        menuProject.addAction(delItemAction)
-        menuProject.addSeparator()
-        menuProject.addAction(refreshAction)
         menuContractor = menubar.addMenu('&사업자 정보')
-        menuContractor.addAction(viewContractorAction)
-        menuContractor.addAction(viewContactAction)
         menuEtc = menubar.addMenu('&기타정보')
-        menuEtc.addAction(viewFundTypeAction)
-        menuEtc.addAction(viewTaskTypeAction)
-        menuEtc.addAction(viewCountryAction)
-        menuEtc.addAction(viewRegionAction)
-        menuEtc.addAction(viewContractorTypeAction)
-
         self.toolbar = self.addToolBar('Exit')
-        self.toolbar.addAction(loadAction)
-        self.toolbar.addAction(saveAction)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(addItemAction)
-        self.toolbar.addAction(editItemAction)
-        self.toolbar.addAction(delItemAction)
-        self.toolbar.addAction(refreshAction)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(exitAction)
         self.toolbar.setIconSize(QSize(32, 48))
         self.toolbar.setStyleSheet("QToolBar{spacing:16px;}")
+
+        self.add_command_ui('id_load', 'load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
+        self.add_command_ui('id_save', 'save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
+        self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
+        menuDB.addSeparator()
+        self.toolbar.addSeparator()
+        self.add_command_ui('id_add', 'add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
+        self.add_command_ui('id_edit', 'edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar)
+        self.add_command_ui('id_delete', 'delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar)
+        menuProject.addSeparator()
+        self.add_command_ui('id_refresh', 'refresh.png', '새로고침', 'Ctrl+r', self.refresh_data, menuProject, self.toolbar)
+        self.add_command_ui('id_view_contractor', 'db.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
+        self.add_command_ui('id_view_contact', 'db.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
+        self.add_command_ui('id_view_fundtype', 'db.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
+        self.add_command_ui('id_view_tasktype', 'db.png', '과업유형 보기', 'Ctrl+4', self.event_view_tasktype, menuEtc, None)
+        self.add_command_ui('id_view_country', 'db.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
+        self.add_command_ui('id_view_region', 'db.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
+        self.add_command_ui('id_view_contractortype', 'db.png', '기업분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
 
         self.setCentralWidget(self.projectTableWidget)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
         self.setWindowIcon(QIcon('db.png'))
         self.setGeometry(300, 300, 700, 450)
-        self.load_db(self.db_path)
-        self.show()
 
-    def check_db(self, db_path):
-        try:
-            con = sqlite3.connect(db_path)
-            cursor = con.cursor()
-            cursor.execute("select * from project")
-            con.close()
-        except Exception as err:
-            ShowWarning(self, str(err))
-            return False
-        return True
+        err = self.load_db(self.db_path)
+        if err != '':
+            ShowWarning(self, err)
+        self.show()
 
     def event_load_db(self):
         fname = QFileDialog.getOpenFileName(self, '데이터베이스 파일을 선택해 주세요', './', "SQLite Database (*.db)")
         db_path = fname[0]
         if db_path:
-            if self.check_db(db_path):
-                self.load_db(db_path)
-            else:
-                ShowWarning(self, "적합한 데이터베이스 파일이 아닙니다.")
+            err = self.load_db(db_path)
+            if err != '':
+                ShowWarning(self, err)
 
     def event_save_db(self):
         reply = QMessageBox.question(self, '데이터베이스 저장', '변경사항을 데이터베이스에 저장하시겠습니까?',
@@ -250,11 +189,29 @@ class MyMain(QMainWindow):
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
-        self.projectData.load_db(db_path)
-        self.projectTableWidget.loadData()
-        self.statusBar().showMessage('DB 데이터 읽기가 완료되었습니다.')
-        self.setWindowTitle('전자정부 수출실적 데이터베이스: ' + db_path)
-        self.db_path = db_path
+        err = self.projectData.load_data(db_path)
+        is_ok = True
+        if err == '':
+            self.projectTableWidget.loadData()
+            self.statusBar().showMessage('DB 데이터 읽기가 완료되었습니다.')
+            self.setWindowTitle('전자정부 수출실적 데이터베이스: ' + db_path)
+            self.db_path = db_path
+        else:
+            self.statusBar().showMessage('읽어들인 DB가 없습니다.')
+            is_ok = False
+        menu = self.menuBar()
+        for submenu in menu.children():
+            for item in submenu.actions():
+                if item.data() == 'id_load':
+                    item.setEnabled(True)
+                else:
+                    item.setEnabled(is_ok)
+        for item in self.toolbar.actions():
+            if item.data() == 'id_load':
+                item.setEnabled(True)
+            else:
+                item.setEnabled(is_ok)
+        return err
 
     def save_db(self):
         data = self.projectData
@@ -348,6 +305,9 @@ class ProjectTableWidget(QTableWidget):
         self.edit_project(row)
 
     def loadData(self):
+        if not self.projectData.is_ready():
+            return
+        print("test:", self.projectData.is_ready())
         data = self.projectData
         self.clearContents()
         self.setRowCount(0)
