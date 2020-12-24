@@ -131,6 +131,7 @@ class MyMain(QMainWindow):
             ui_menu.addAction(tempAction)
         if ui_toolbar is not None:
             ui_toolbar.addAction(tempAction)
+        return tempAction
 
     def init_ui(self):
         self.projectTableWidget = ProjectTableWidget(self)
@@ -145,14 +146,15 @@ class MyMain(QMainWindow):
         self.toolbar.setIconSize(QSize(32, 48))
         self.toolbar.setStyleSheet("QToolBar{spacing:16px;}")
 
+        self.actions_selected = []
         self.add_command_ui('id_load', 'load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
         self.add_command_ui('id_save', 'save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
         self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         menuDB.addSeparator()
         self.toolbar.addSeparator()
         self.add_command_ui('id_add', 'add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
-        self.add_command_ui('id_edit', 'edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar)
-        self.add_command_ui('id_delete', 'delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar)
+        self.actions_selected.append(self.add_command_ui('id_edit', 'edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
+        self.actions_selected.append(self.add_command_ui('id_delete', 'delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar))
         menuProject.addSeparator()
         self.add_command_ui('id_refresh', 'refresh.png', '새로고침', 'Ctrl+r', self.refresh_data, menuProject, self.toolbar)
         self.add_command_ui('id_view_contractor', 'db.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
@@ -172,6 +174,7 @@ class MyMain(QMainWindow):
         if err != '':
             ShowWarning(self, err)
         self.show()
+        self.projectTableWidget.itemSelectionChanged.connect(self.validate_action_ui_selected)
 
     def event_load_db(self):
         fname = QFileDialog.getOpenFileName(self, '데이터베이스 파일을 선택해 주세요', './', "SQLite Database (*.db)")
@@ -190,7 +193,6 @@ class MyMain(QMainWindow):
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
         err = self.projectData.load_data(db_path)
-        is_ok = True
         if err == '':
             self.projectTableWidget.loadData()
             self.statusBar().showMessage('DB 데이터 읽기가 완료되었습니다.')
@@ -198,20 +200,30 @@ class MyMain(QMainWindow):
             self.db_path = db_path
         else:
             self.statusBar().showMessage('읽어들인 DB가 없습니다.')
-            is_ok = False
+        self.validate_action_ui_all()
+        return err
+
+    def validate_action_ui_selected(self):
+        for action in self.actions_selected:
+            self.validate_action_ui(action)
+
+    def validate_action_ui_all(self):
         menu = self.menuBar()
         for submenu in menu.children():
-            for item in submenu.actions():
-                if item.data() == 'id_load':
-                    item.setEnabled(True)
-                else:
-                    item.setEnabled(is_ok)
-        for item in self.toolbar.actions():
-            if item.data() == 'id_load':
-                item.setEnabled(True)
-            else:
-                item.setEnabled(is_ok)
-        return err
+            for action in submenu.actions():
+                if not action.isSeparator():
+                    self.validate_action_ui(action)
+        for action in self.toolbar.actions():
+            if not action.isSeparator():
+                self.validate_action_ui(action)
+
+    def validate_action_ui(self, action):
+        if action.data() == 'id_load' or action.data() == 'id_exit':
+            action.setEnabled(True)
+        elif action.data() == 'id_edit' or action.data() == 'id_delete':
+            action.setEnabled(len(self.projectTableWidget.selectedItems())>0)
+        else:
+            action.setEnabled(self.projectData.is_ready())
 
     def save_db(self):
         data = self.projectData
@@ -293,8 +305,9 @@ class ProjectTableWidget(QTableWidget):
         self.cellDoubleClicked.connect(self.event_cellDoubleClicked)
 
     def event_edit(self):
-        if self.currentItem():
-            self.edit_project(self.currentItem().row())
+        if self.selectedItems():
+            index = self.selectedItems()[0].row()
+            self.edit_project(index)
 
     def event_delete(self):
         while self.selectedItems():
@@ -307,7 +320,6 @@ class ProjectTableWidget(QTableWidget):
     def loadData(self):
         if not self.projectData.is_ready():
             return
-        print("test:", self.projectData.is_ready())
         data = self.projectData
         self.clearContents()
         self.setRowCount(0)
