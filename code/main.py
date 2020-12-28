@@ -199,7 +199,9 @@ class MyMain(QMainWindow):
             self.setWindowTitle('전자정부 수출실적 데이터베이스: ' + db_path)
             self.db_path = db_path
         else:
-            self.statusBar().showMessage('읽어들인 DB가 없습니다.')
+            self.projectTableWidget.clearContents()
+            self.projectTableWidget.setRowCount(0)
+            self.statusBar().showMessage('DB를 읽지 못했습니다.')
         self.validate_action_ui_all()
         return err
 
@@ -218,7 +220,7 @@ class MyMain(QMainWindow):
                 self.validate_action_ui(action)
 
     def validate_action_ui(self, action):
-        if action.data() == 'id_load' or action.data() == 'id_exit':
+        if action.data() == 'id_load' or action.data() == 'id_exit' or action.data() is None:
             action.setEnabled(True)
         elif action.data() == 'id_edit' or action.data() == 'id_delete':
             action.setEnabled(len(self.projectTableWidget.selectedItems())>0)
@@ -236,6 +238,7 @@ class MyMain(QMainWindow):
             data.df_project_tasktype.to_sql('project_tasktype', con, if_exists='replace', index=False)
             data.df_contractor.to_sql('contractor', con, if_exists='replace', index=False)
             data.df_contact.to_sql('contact', con, if_exists='replace', index=False)
+            #아래는 함부로 변경되면 안되는 테이블들로 필요시 SQLite Studio 등으로 편집하는 것을 원칙으로 함
             #data.df_fundtype.to_sql('fundtype', con, if_exists='replace', index=False)
             #data.df_country.to_sql('country', con, if_exists='replace', index=False)
             #data.df_region.to_sql('region', con, if_exists='replace', index=False)
