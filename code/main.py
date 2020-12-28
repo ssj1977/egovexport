@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, Q
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QIcon, QIntValidator
-from PyQt5.QtCore import Qt, QSize, QDate
+from PyQt5.QtCore import Qt, QSize, QDate, QFile, QTextStream
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -149,8 +149,10 @@ class MyMain(QMainWindow):
         self.actions_selected = []
         self.add_command_ui('id_load', 'load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
         self.add_command_ui('id_save', 'save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
-        self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         menuDB.addSeparator()
+        self.add_command_ui('id_export_csv', 'db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_csv, menuDB, self.toolbar)
+        menuDB.addSeparator()
+        self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         self.toolbar.addSeparator()
         self.add_command_ui('id_add', 'add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
         self.actions_selected.append(self.add_command_ui('id_edit', 'edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
@@ -189,6 +191,9 @@ class MyMain(QMainWindow):
                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             self.save_db()
+
+    def event_export_csv(self):
+        self.projectTableWidget.export_csv("test.csv")
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
@@ -355,6 +360,17 @@ class ProjectTableWidget(QTableWidget):
             names = names[:-1]
         return GetColItem(names)
 
+    def GetNames_FundType(self, df):
+        names = ''
+        for index, row in df.iterrows():
+            names += row['name']
+            if row['amount'] > 0:
+                names += '(${})'.format(int(row['amount']))
+            names += '/'
+        if names != '':
+            names = names[:-1]
+        return GetColItem(names)
+
     def GetCountry(self, project_id, data):
         df_merged = pd.merge(data.df_project_country, data.df_country, left_on='country_id', right_on='id')[['project_id', 'name']]
         df_selected = df_merged.query('project_id == {}'.format(project_id))
@@ -366,9 +382,9 @@ class ProjectTableWidget(QTableWidget):
         return self.GetNames(df_selected)
 
     def GetFundType(self, project_id, data):
-        df_merged = pd.merge(data.df_project_fund, data.df_fundtype, left_on='fundtype_id', right_on='id')[['project_id', 'name']]
+        df_merged = pd.merge(data.df_project_fund, data.df_fundtype, left_on='fundtype_id', right_on='id')[['project_id', 'name', 'amount']]
         df_selected = df_merged.query('project_id == {}'.format(project_id))
-        return self.GetNames(df_selected)
+        return self.GetNames_FundType(df_selected)
 
     def GetTaskType(self, project_id, data):
         df_merged = pd.merge(data.df_project_tasktype, data.df_tasktype, left_on='tasktype_id', right_on='id')[['project_id', 'name']]
@@ -424,6 +440,29 @@ class ProjectTableWidget(QTableWidget):
         self.projectData.df_project = df_temp.drop(index)
         # UI에서 삭제
         self.removeRow(row_index)
+
+    def export_csv(self, csv_path):
+        csv_path = os.path.abspath(csv_path)
+        file = QFile(csv_path)
+        print(csv_path)
+        try:
+            file.open(QFile.WriteOnly | QFile.Text | QFile.Truncate)
+        except Exception as err:
+            print(str(err))
+            return
+        stream = QTextStream(file)
+        csv_text = ''
+        for row in range(self.rowCount()):
+            for col in range(self.columnCount()):
+                temp = self.item(row, col).text()
+                print(temp)
+                if temp:
+                    csv_text += temp + ','
+            csv_text += '\n'
+        print(csv_text)
+        stream << csv_text
+        file.close()
+
 
 
 class ProjectFormDialog(QDialog):
@@ -854,26 +893,7 @@ class ModalEditorTableWidget(QTableWidget):
         h_header.setSectionResizeMode(0, QHeaderView.Fixed)
         for index in range(0, len(column_widths)):
             self.setColumnWidth(index, column_widths[index])
-        """self.cellActivated.connect(self.handleCellActivated)
-        self.cellClicked.connect(self.handleCellClicked)
-        self.cellDoubleClicked.connect(self.handleCellDoubleClicked)
-        self.cellEntered.connect(self.handleCellEntered)
-        self.cellPressed.connect(self.handleCellPressed)
-        self.cellChanged.connect(self.handleCellChanged)"""
         self.loadData()
-
-    """def handleCellActivated(self, row, column):
-        print("cellActivated", row, column)
-    def handleCellClicked(self, row, column):
-        print("cellClicked", row, column)
-    def handleCellDoubleClicked(self, row, column):
-        print("cellDoubleClicked", row, column)
-    def handleCellEntered(self, row, column):
-        print("cellEntered", row, column)
-    def handleCellPressed(self, row, column):
-        print("cellPressed", row, column)
-    def handleCellChanged(self, row, column):
-        print("cellChanged", row, column)"""
 
     def get_df(self):
         if self.table_type == 'contractor':
