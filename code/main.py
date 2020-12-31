@@ -9,6 +9,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import os.path
+import csv
 
 # Common Functions
 def ShowWarning(self, msg):
@@ -150,7 +151,7 @@ class MyMain(QMainWindow):
         self.add_command_ui('id_load', 'load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
         self.add_command_ui('id_save', 'save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
         menuDB.addSeparator()
-        self.add_command_ui('id_export_csv', 'db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_csv, menuDB, self.toolbar)
+        self.add_command_ui('id_export_list_in_csv', 'db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
         menuDB.addSeparator()
         self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         self.toolbar.addSeparator()
@@ -192,8 +193,8 @@ class MyMain(QMainWindow):
         if reply == QMessageBox.Yes:
             self.save_db()
 
-    def event_export_csv(self):
-        self.projectTableWidget.export_csv("test.csv")
+    def event_export_list_in_csv(self):
+        self.projectTableWidget.export_list_in_csv("test.csv")
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
@@ -441,27 +442,27 @@ class ProjectTableWidget(QTableWidget):
         # UI에서 삭제
         self.removeRow(row_index)
 
-    def export_csv(self, csv_path):
+    def export_list_in_csv(self, csv_path):
         csv_path = os.path.abspath(csv_path)
-        file = QFile(csv_path)
-        print(csv_path)
         try:
-            file.open(QFile.WriteOnly | QFile.Text | QFile.Truncate)
+            csv_file = open(csv_path, 'w', newline='') #encoding='utf-8'
+            csv_writer = csv.writer(csv_file)
+            print(csv_path)
         except Exception as err:
             print(str(err))
             return
-        stream = QTextStream(file)
-        csv_text = ''
+        csv_table = []
+        csv_row = []
+        for col in range(self.horizontalHeader().count()):
+            csv_row.append(self.horizontalHeaderItem(col).text())
+        csv_table.append(csv_row)
         for row in range(self.rowCount()):
+            csv_row = []
             for col in range(self.columnCount()):
-                temp = self.item(row, col).text()
-                print(temp)
-                if temp:
-                    csv_text += temp + ','
-            csv_text += '\n'
-        print(csv_text)
-        stream << csv_text
-        file.close()
+                csv_row.append(self.item(row, col).text())
+            csv_table.append(csv_row)
+        csv_writer.writerows(csv_table)
+        csv_file.close()
 
 
 
