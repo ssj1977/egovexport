@@ -2,9 +2,10 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, QSizePolicy, QFileDialog
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QSystemTrayIcon
 from PyQt5.QtGui import QIcon, QIntValidator
-from PyQt5.QtCore import Qt, QSize, QDate, QFile, QTextStream
+from PyQt5.QtCore import Qt, QSize, QDate
+from PyQt5.QtWinExtras import QWinTaskbarButton
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -148,29 +149,29 @@ class MyMain(QMainWindow):
         self.toolbar.setStyleSheet("QToolBar{spacing:16px;}")
 
         self.actions_selected = []
-        self.add_command_ui('id_load', 'load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
-        self.add_command_ui('id_save', 'save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
+        self.add_command_ui('id_load', './res/load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
+        self.add_command_ui('id_save', './res/save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
         menuDB.addSeparator()
-        self.add_command_ui('id_export_list_in_csv', 'db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
+        self.add_command_ui('id_export_list_in_csv', './res/db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
         menuDB.addSeparator()
-        self.add_command_ui('id_exit', 'exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
+        self.add_command_ui('id_exit', './res/exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         self.toolbar.addSeparator()
-        self.add_command_ui('id_add', 'add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
-        self.actions_selected.append(self.add_command_ui('id_edit', 'edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
-        self.actions_selected.append(self.add_command_ui('id_delete', 'delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar))
+        self.add_command_ui('id_add', './res/add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
+        self.actions_selected.append(self.add_command_ui('id_edit', './res/edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
+        self.actions_selected.append(self.add_command_ui('id_delete', './res/delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar))
         menuProject.addSeparator()
-        self.add_command_ui('id_refresh', 'refresh.png', '새로고침', 'Ctrl+r', self.refresh_data, menuProject, self.toolbar)
-        self.add_command_ui('id_view_contractor', 'db.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
-        self.add_command_ui('id_view_contact', 'db.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
-        self.add_command_ui('id_view_fundtype', 'db.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
-        self.add_command_ui('id_view_tasktype', 'db.png', '과업유형 보기', 'Ctrl+4', self.event_view_tasktype, menuEtc, None)
-        self.add_command_ui('id_view_country', 'db.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
-        self.add_command_ui('id_view_region', 'db.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
-        self.add_command_ui('id_view_contractortype', 'db.png', '기업분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
+        self.add_command_ui('id_refresh', './res/refresh.png', '새로고침', 'Ctrl+r', self.refresh_data, menuProject, self.toolbar)
+        self.add_command_ui('id_view_contractor', './res/db.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
+        self.add_command_ui('id_view_contact', './res/db.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
+        self.add_command_ui('id_view_fundtype', './res/db.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
+        self.add_command_ui('id_view_tasktype', './res/db.png', '과업유형 보기', 'Ctrl+4', self.event_view_tasktype, menuEtc, None)
+        self.add_command_ui('id_view_country', './res/db.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
+        self.add_command_ui('id_view_region', './res/db.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
+        self.add_command_ui('id_view_contractortype', './res/db.png', '기업분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
 
         self.setCentralWidget(self.projectTableWidget)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
-        self.setWindowIcon(QIcon('db.png'))
+        self.setWindowIcon(QIcon('./res/app.png'))
         self.setGeometry(300, 300, 700, 450)
 
         err = self.load_db(self.db_path)
@@ -194,7 +195,12 @@ class MyMain(QMainWindow):
             self.save_db()
 
     def event_export_list_in_csv(self):
-        self.projectTableWidget.export_list_in_csv("test.csv")
+        db_name, db_ext = os.path.splitext(self.db_path)
+        file_path, file_option = QFileDialog.getSaveFileName(self, '표시된 목록을 CSV 파일로 저장합니다.', db_name, "CSV (*.csv)")
+        if file_path:
+            err = self.projectTableWidget.export_list_in_csv(file_path)
+            if err != '':
+                ShowWarning(self, err)
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
@@ -305,7 +311,7 @@ class ProjectTableWidget(QTableWidget):
         self.verticalHeader().setStyleSheet("::section{Background-color:rgb(195,220,235);}")
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        column_headers = ['코드', '사업명', '귀속년도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
+        column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
         column_widths = [40, 200, 60, 100, 100, 100, 100, 80, 80, 100, 150, 100]
         self.setHorizontalHeaderLabels(column_headers)
         for index in range(0, len(column_widths)):
@@ -445,12 +451,10 @@ class ProjectTableWidget(QTableWidget):
     def export_list_in_csv(self, csv_path):
         csv_path = os.path.abspath(csv_path)
         try:
-            csv_file = open(csv_path, 'w', newline='') #encoding='utf-8'
+            csv_file = open(csv_path, 'w', newline='', encoding='utf-8')
             csv_writer = csv.writer(csv_file)
-            print(csv_path)
         except Exception as err:
-            print(str(err))
-            return
+            return err
         csv_table = []
         csv_row = []
         for col in range(self.horizontalHeader().count()):
@@ -463,6 +467,7 @@ class ProjectTableWidget(QTableWidget):
             csv_table.append(csv_row)
         csv_writer.writerows(csv_table)
         csv_file.close()
+        return ''
 
 
 
@@ -482,7 +487,7 @@ class ProjectFormDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowIcon(QIcon('add.png'))
+        self.setWindowIcon(QIcon('./res/add.png'))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         # Initialize UI Objects for Project Attributes
         self.ui_name = QLineEdit()
@@ -1168,7 +1173,7 @@ class ModalEditorDialog(QDialog):
 
     def init_ui(self):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self.setWindowIcon(QIcon('db.png'))
+        self.setWindowIcon(QIcon('./res/app.png'))
         self.ui_list = ModalEditorTableWidget(self, self.table_type)
         #
         self.ui_add = QPushButton('새 항목 추가')
