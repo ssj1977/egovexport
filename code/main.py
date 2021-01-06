@@ -152,7 +152,7 @@ class MyMain(QMainWindow):
         self.add_command_ui('id_load', './res/load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
         self.add_command_ui('id_save', './res/save.png', '저장하기', 'Ctrl+s', self.event_save_db, menuDB, self.toolbar)
         menuDB.addSeparator()
-        self.add_command_ui('id_export_list_in_csv', './res/db.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
+        self.add_command_ui('id_export_list_in_csv', './res/csv.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
         menuDB.addSeparator()
         self.add_command_ui('id_exit', './res/exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
         self.toolbar.addSeparator()
