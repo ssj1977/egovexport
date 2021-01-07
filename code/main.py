@@ -2,10 +2,9 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, QSizePolicy, QFileDialog
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
-from PyQt5.QtWidgets import QMessageBox, QSystemTrayIcon
-from PyQt5.QtGui import QIcon, QIntValidator
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo
 from PyQt5.QtCore import Qt, QSize, QDate
-from PyQt5.QtWinExtras import QWinTaskbarButton
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -121,6 +120,7 @@ class MyMain(QMainWindow):
         super().__init__()
         self.projectData = ProjectData()
         self.db_path = 'egovexport.db'
+        self.option_write_legend = True
         self.init_ui()
 
     def add_command_ui(self, ui_id, ui_icon, ui_text, ui_hotkey, ui_func, ui_menu, ui_toolbar):
@@ -137,15 +137,15 @@ class MyMain(QMainWindow):
 
     def init_ui(self):
         self.projectTableWidget = ProjectTableWidget(self)
-
+        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         menuDB = menubar.addMenu('&데이터베이스')
-        menuProject = menubar.addMenu('&사업 정보')
-        menuContractor = menubar.addMenu('&사업자 정보')
-        menuEtc = menubar.addMenu('&기타정보')
+        menuProject = menubar.addMenu('&사업목록')
+        menuContractor = menubar.addMenu('&사업자')
+        menuEtc = menubar.addMenu('&항목관리')
         self.toolbar = self.addToolBar('Exit')
-        self.toolbar.setIconSize(QSize(32, 48))
+        self.toolbar.setIconSize(QSize(pu//20*32, int(pu//20*32*1.2)))
         self.toolbar.setStyleSheet("QToolBar{spacing:16px;}")
 
         self.actions_selected = []
@@ -158,21 +158,21 @@ class MyMain(QMainWindow):
         self.toolbar.addSeparator()
         self.add_command_ui('id_add', './res/add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
         self.actions_selected.append(self.add_command_ui('id_edit', './res/edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
-        self.actions_selected.append(self.add_command_ui('id_delete', './res/delete.png', '삭제', 'Ctrl+ㅇ', self.projectTableWidget.event_delete, menuProject, self.toolbar))
+        self.actions_selected.append(self.add_command_ui('id_delete', './res/delete.png', '삭제', 'Ctrl+d', self.projectTableWidget.event_delete, menuProject, self.toolbar))
         menuProject.addSeparator()
-        self.add_command_ui('id_refresh', './res/refresh.png', '새로고침', 'Ctrl+r', self.refresh_data, menuProject, self.toolbar)
-        self.add_command_ui('id_view_contractor', './res/db.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
-        self.add_command_ui('id_view_contact', './res/db.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
-        self.add_command_ui('id_view_fundtype', './res/db.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
-        self.add_command_ui('id_view_tasktype', './res/db.png', '과업유형 보기', 'Ctrl+4', self.event_view_tasktype, menuEtc, None)
-        self.add_command_ui('id_view_country', './res/db.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
-        self.add_command_ui('id_view_region', './res/db.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
-        self.add_command_ui('id_view_contractortype', './res/db.png', '기업분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
+        self.add_command_ui('id_refresh', './res/refresh.png', '다시읽기', 'Ctrl+r', self.event_refresh_data, menuProject, self.toolbar)
+        self.add_command_ui('id_view_contractor', './res/contractor.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
+        self.add_command_ui('id_view_contact', './res/contact.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
+        self.add_command_ui('id_view_fundtype', './res/fundtype.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
+        self.add_command_ui('id_view_tasktype', './res/tasktype.png', '과업유형 보기', 'Ctrl+4', self.event_view_tasktype, menuEtc, None)
+        self.add_command_ui('id_view_country', './res/country.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
+        self.add_command_ui('id_view_region', './res/region.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
+        self.add_command_ui('id_view_contractortype', './res/contractor.png', '사업자 분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
 
         self.setCentralWidget(self.projectTableWidget)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
         self.setWindowIcon(QIcon('./res/app.png'))
-        self.setGeometry(300, 300, 700, 450)
+        self.setGeometry(pu*12, pu*9, pu*60, pu*45)
 
         err = self.load_db(self.db_path)
         if err != '':
@@ -250,12 +250,12 @@ class MyMain(QMainWindow):
             data.df_project_tasktype.to_sql('project_tasktype', con, if_exists='replace', index=False)
             data.df_contractor.to_sql('contractor', con, if_exists='replace', index=False)
             data.df_contact.to_sql('contact', con, if_exists='replace', index=False)
-            #아래는 함부로 변경되면 안되는 테이블들로 필요시 SQLite Studio 등으로 편집하는 것을 원칙으로 함
-            #data.df_fundtype.to_sql('fundtype', con, if_exists='replace', index=False)
-            #data.df_country.to_sql('country', con, if_exists='replace', index=False)
-            #data.df_region.to_sql('region', con, if_exists='replace', index=False)
-            #data.df_contractortype.to_sql('contractortype', con, if_exists='replace', index=False)
-            #data.df_tasktype.to_sql('tasktype', con, if_exists='replace', index=False)
+            if self.option_write_legend == True:
+                data.df_fundtype.to_sql('fundtype', con, if_exists='replace', index=False)
+                data.df_country.to_sql('country', con, if_exists='replace', index=False)
+                data.df_region.to_sql('region', con, if_exists='replace', index=False)
+                data.df_contractortype.to_sql('contractortype', con, if_exists='replace', index=False)
+                data.df_tasktype.to_sql('tasktype', con, if_exists='replace', index=False)
             con.close()
         except Exception as err:
             ShowWarning(self, str(err))
@@ -263,8 +263,11 @@ class MyMain(QMainWindow):
         ShowWarning(self, "데이터베이스에 저장되었습니다..")
         return True
 
-    def refresh_data(self):
-        self.load_db(self.db_path)
+    def event_refresh_data(self):
+        reply = QMessageBox.question(self, '데이터베이스 다시읽기', '저장하지 않은 변경사항은 사라집니다. 계속하시겠습니까?',
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.load_db(self.db_path)
 
     def event_view_contractor(self):
         dlg = ModalEditorDialog(self, 'contractor')
@@ -311,8 +314,11 @@ class ProjectTableWidget(QTableWidget):
         self.verticalHeader().setStyleSheet("::section{Background-color:rgb(195,220,235);}")
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        pu = QFontInfo(self.font()).pixelSize()  # pixel unit, width of a single letter in pixel
         column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
-        column_widths = [40, 200, 60, 100, 100, 100, 100, 80, 80, 100, 150, 100]
+        column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 10]
+        for i in range(len(column_widths)):
+            column_widths[i] *= pu
         self.setHorizontalHeaderLabels(column_headers)
         for index in range(0, len(column_widths)):
             self.setColumnWidth(index, column_widths[index])
@@ -325,9 +331,12 @@ class ProjectTableWidget(QTableWidget):
             self.edit_project(index)
 
     def event_delete(self):
-        while self.selectedItems():
-            index = self.selectedItems()[0].row()
-            self.delete_project(index)
+        reply = QMessageBox.question(self, '사업 삭제', '선택한 사업을 삭제합니다. 계속하시겠습니까?',
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            while self.selectedItems():
+                index = self.selectedItems()[0].row()
+                self.delete_project(index)
 
     def event_cellDoubleClicked(self, row, col):
         self.edit_project(row)
@@ -470,7 +479,6 @@ class ProjectTableWidget(QTableWidget):
         return ''
 
 
-
 class ProjectFormDialog(QDialog):
     def __init__(self, parent, project_id=None):
         super().__init__()
@@ -487,7 +495,11 @@ class ProjectFormDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowIcon(QIcon('./res/add.png'))
+        if self.add_new == False:
+            icon_path = './res/edit.png'
+        else:
+            icon_path = './res/add.png'
+        self.setWindowIcon(QIcon(icon_path))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         # Initialize UI Objects for Project Attributes
         self.ui_name = QLineEdit()
@@ -540,7 +552,8 @@ class ProjectFormDialog(QDialog):
         self.ui_cancel.setMinimumHeight(30)
         self.ui_cancel.clicked.connect(self.event_btn_cancel)
         # Initialize UI Layout
-        self.resize(400, 300)
+        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        self.resize(pu*40, pu*30)
         grid = QGridLayout()
         self.setLayout(grid)
         gr = 0  # Grid Row
@@ -811,7 +824,11 @@ class AddListItemDialog(QDialog):
 
         grid = QGridLayout()
         self.setLayout(grid)
-        self.resize(200, 50)
+        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        if self.itemType == 'fundtype':
+            self.resize(pu*16, pu*11)
+        else:
+            self.resize(pu*16, pu*8)
         grid.addWidget(self.ui_combo_label, 0, 0, 1, 2)
         grid.addWidget(self.ui_combo, 1, 0, 1, 2)
         grid.addWidget(self.ui_ok, 4, 0, 1, 1)
@@ -823,6 +840,7 @@ class AddListItemDialog(QDialog):
             self.loadItems(self.projectData.df_country)
         elif self.itemType == 'contractor':
             self.setWindowTitle("사업자 추가")
+            self.setWindowIcon(QIcon("./res/contractor.png"))
             self.ui_combo_label.setText("사업자")
             self.loadItems(self.projectData.df_contractor)
         elif self.itemType == 'fundtype':
@@ -869,27 +887,29 @@ class ModalEditorTableWidget(QTableWidget):
 
     def init_ui(self):
         if self.table_type == 'contractor':
-            column_headers = ['', '코드', '사업자명', '사업자 유형', '사업자 등록번호', '법인번호', '참조회수']
-            column_widths = [15, 40, 100, 100, 100, 100, 60]
+            column_headers = ['', '코드', '사업자명', '사업자 유형', '사업자 등록번호', '법인번호', '참조']
+            column_widths = [1, 2, 8, 8, 8, 8, 5]
         elif self.table_type == 'contact':
             column_headers = ['', '코드', '이름', '소속', '전화번호', '이메일', '주소', '갱신일자']
-            column_widths = [15, 40, 100, 100, 100, 100, 100, 100]
+            column_widths = [1, 2, 4, 8, 8, 8, 8, 8]
         elif self.table_type == 'fundtype':
-            column_headers = ['', '코드', '자금유형', '참조회수']
-            column_widths = [15, 40, 100, 60]
+            column_headers = ['', '코드', '자금유형', '참조']
+            column_widths = [1, 2, 12, 5]
         elif self.table_type == 'country':
-            column_headers = ['', '코드', '국가명', '지역', '참조회수']
-            column_widths = [15, 40, 100, 150, 60]
+            column_headers = ['', '코드', '국가명', '지역', '참조']
+            column_widths = [1, 3, 8, 12, 5]
         elif self.table_type == 'region':
-            column_headers = ['', '코드', '지역', '참조회수']
-            column_widths = [15, 40, 150, 60]
+            column_headers = ['', '코드', '지역', '참조']
+            column_widths = [1, 2, 12, 5]
         elif self.table_type == 'contractortype':
-            column_headers = ['', '코드', '분류', '참조회수']
-            column_widths = [15, 40, 100, 60]
+            column_headers = ['', '코드', '분류', '참조']
+            column_widths = [1, 2, 12, 5]
         elif self.table_type == 'tasktype':
-            column_headers = ['', '코드', '유형', '참조회수']
-            column_widths = [15, 40, 100, 60]
-
+            column_headers = ['', '코드', '유형', '참조']
+            column_widths = [1, 2, 12, 5]
+        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        for i in range(len(column_widths)):
+            column_widths[i] *= pu
         self.setRowCount(0)
         self.setColumnCount(len(column_headers))
         self.setHorizontalHeaderLabels(column_headers)
@@ -961,7 +981,8 @@ class ModalEditorTableWidget(QTableWidget):
 
     def initRowWidget(self, row_index):
         check_box = QCheckBox()
-        check_box.setStyleSheet("margin-left:10px;")
+        check_box_pos = self.columnWidth(0) / 2 - 8;
+        check_box.setStyleSheet("margin-left:"+str(check_box_pos)+"px;")
         self.setCellWidget(row_index, 0, check_box)
         if self.table_type == 'contractor':
             combo_box = QMyComboBox()
@@ -991,7 +1012,7 @@ class ModalEditorTableWidget(QTableWidget):
             combo_box.setCurrentIndex(combo_box.findData(int(row['type'])))
             self.setItem(row_index, 4, GetColItem(row['businessnumber']))
             self.setItem(row_index, 5, GetColItem(row['corporatenumber']))
-            self.setItem(row_index, 6, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 6, GetColItem(reference_counter, True, True))
         elif self.table_type == 'contact':
             combo_box = self.cellWidget(row_index, 3)
             combo_box.setCurrentIndex(combo_box.findData(row['contractor_id']))
@@ -1003,25 +1024,25 @@ class ModalEditorTableWidget(QTableWidget):
         elif self.table_type == 'fundtype':
             df_temp = self.tempData.df_project_fund
             reference_counter = len(df_temp[df_temp['fundtype_id'] == row['id']].index)  # 사업과 연결된 회수
-            self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
         elif self.table_type == 'country':
             df_temp = self.tempData.df_project_country
             reference_counter = len(df_temp[df_temp['country_id'] == row['id']].index)  # 사업과 연결된 회수
             combo_box = self.cellWidget(row_index, 3)
             combo_box.setCurrentIndex(combo_box.findData(int(row['region_id'])))
-            self.setItem(row_index, 4, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 4, GetColItem(reference_counter, True, True))
         elif self.table_type == 'region':
             df_temp = self.tempData.df_country
             reference_counter = len(df_temp[df_temp['region_id'] == row['id']].index)  # 국가와 연결된 회수
-            self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
         elif self.table_type == 'contractortype':
             df_temp = self.tempData.df_contractor
             reference_counter = len(df_temp[df_temp['type'] == row['id']].index)  # 사업과 연결된 회수
-            self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
         elif self.table_type == 'tasktype':
             df_temp = self.tempData.df_project_tasktype
             reference_counter = len(df_temp[df_temp['tasktype_id'] == row['id']].index)  # 사업과 연결된 회수
-            self.setItem(row_index, 3, GetColItem(reference_counter, False, True))
+            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
 
     def add_new_row(self):
         new_row_index = self.rowCount()
@@ -1096,6 +1117,11 @@ class ModalEditorTableWidget(QTableWidget):
             self.tempData.df_fundtype.update(df_update.set_index('id'))
             self.tempData.df_fundtype.reset_index(inplace=True)
             self.projectData.df_fundtype = self.tempData.df_fundtype
+        elif self.table_type == 'tasktype':
+            self.tempData.df_tasktype.set_index('id', inplace=True)
+            self.tempData.df_tasktype.update(df_update.set_index('id'))
+            self.tempData.df_tasktype.reset_index(inplace=True)
+            self.projectData.df_tasktype = self.tempData.df_tasktype
         elif self.table_type == 'country':
             self.tempData.df_country.set_index('id', inplace=True)
             self.tempData.df_country.update(df_update.set_index('id'))
@@ -1199,23 +1225,33 @@ class ModalEditorDialog(QDialog):
         grid.addWidget(self.ui_delete, 1, 1, 1, 1)
         grid.addWidget(self.ui_apply, 1, 3, 1, 1)
         grid.addWidget(self.ui_close, 1, 4, 1, 1)
-        self.resize(600, 320)
+        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        self.resize(pu*32, pu*24)
+        title_text = '기타'
+        icon_path = 'app.png'
         if self.table_type == 'contractor':
-            self.setWindowTitle('사업자 목록')
+            title_text = '사업자 목록'
+            icon_path = './res/contractor.png'
         elif self.table_type == 'contact':
-            self.setWindowTitle('사업자 연락처')
+            title_text = '사업자 연락처'
+            icon_path = './res/contact.png'
         elif self.table_type == 'fundtype':
-            self.setWindowTitle('자금 유형')
+            title_text = '자금 유형'
+            icon_path = './res/fundtype.png'
         elif self.table_type == 'tasktype':
-            self.setWindowTitle('자금 유형')
+            title_text = '사업 유형'
+            icon_path = './res/tasktype.png'
         elif self.table_type == 'country':
-            self.setWindowTitle('국가 목록')
+            title_text = '국가 목록'
+            icon_path = './res/country.png'
         elif self.table_type == 'region':
-            self.setWindowTitle('지역 구분')
+            title_text = '지역 구분'
+            icon_path = './res/region.png'
         elif self.table_type == 'contractortype':
-            self.setWindowTitle('기업 분류')
-        else:
-            self.setWindowTitle('알 수 없음')
+            title_text = '사업자 분류'
+            icon_path = './res/contractor.png'
+        self.setWindowTitle(title_text)
+        self.setWindowIcon(QIcon(icon_path))
         self.ui_close.setDefault(True)
 
     def event_btn_add(self):
