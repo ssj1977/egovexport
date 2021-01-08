@@ -45,6 +45,7 @@ class ProjectData:
         self.df_contact = None
         self.df_tasktype = None
         self.df_project_tasktype = None
+        self.df_domaintype = None
 
     def is_ready(self):
         if self.df_project is None:
@@ -73,6 +74,7 @@ class ProjectData:
             self.df_contact = pd.read_sql("SELECT * FROM contact", con)
             self.df_tasktype = pd.read_sql("SELECT * FROM tasktype", con)
             self.df_project_tasktype = pd.read_sql("SELECT * FROM project_tasktype", con)
+            self.df_domaintype = pd.read_sql("SELECT * FROM domaintype", con)
             con.close()
         except Exception as err:
             self.df_project = None
@@ -93,6 +95,7 @@ class ProjectData:
         replica.df_contact = self.df_contact.copy()
         replica.df_tasktype = self.df_tasktype.copy()
         replica.df_project_tasktype = self.df_project_tasktype.copy()
+        replica.df_domaintype = self.df_domaintype.copy()
         return replica
 
 
@@ -168,6 +171,7 @@ class MyMain(QMainWindow):
         self.add_command_ui('id_view_country', './res/country.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
         self.add_command_ui('id_view_region', './res/region.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
         self.add_command_ui('id_view_contractortype', './res/contractor.png', '사업자 분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
+        self.add_command_ui('id_view_domaintype', './res/domain.png', '분야 보기', 'Ctrl+6', self.event_view_domaintype, menuEtc, None)
 
         self.setCentralWidget(self.projectTableWidget)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
@@ -243,19 +247,20 @@ class MyMain(QMainWindow):
         data = self.projectData
         try:
             con = sqlite3.connect(self.db_path)
-            data.df_project.to_sql('project', con, if_exists='replace', index=False)
-            data.df_project_country.to_sql('project_country', con, if_exists='replace', index=False)
-            data.df_project_contractor.to_sql('project_contractor', con, if_exists='replace', index=False)
-            data.df_project_fund.to_sql('project_fund', con, if_exists='replace', index=False)
-            data.df_project_tasktype.to_sql('project_tasktype', con, if_exists='replace', index=False)
-            data.df_contractor.to_sql('contractor', con, if_exists='replace', index=False)
-            data.df_contact.to_sql('contact', con, if_exists='replace', index=False)
+            data.df_project.to_sql('project', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_project_country.to_sql('project_country', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_project_contractor.to_sql('project_contractor', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_project_fund.to_sql('project_fund', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_project_tasktype.to_sql('project_tasktype', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_contractor.to_sql('contractor', con, if_exists='replace', index=False, chunksize=1000)
+            data.df_contact.to_sql('contact', con, if_exists='replace', index=False, chunksize=1000)
             if self.option_write_legend == True:
                 data.df_fundtype.to_sql('fundtype', con, if_exists='replace', index=False)
                 data.df_country.to_sql('country', con, if_exists='replace', index=False)
                 data.df_region.to_sql('region', con, if_exists='replace', index=False)
                 data.df_contractortype.to_sql('contractortype', con, if_exists='replace', index=False)
                 data.df_tasktype.to_sql('tasktype', con, if_exists='replace', index=False)
+                data.df_domaintype.to_sql('domaintype', con, if_exists='replace', index=False)
             con.close()
         except Exception as err:
             ShowWarning(self, str(err))
@@ -299,6 +304,10 @@ class MyMain(QMainWindow):
         dlg = ModalEditorDialog(self, 'contractortype')
         dlg.exec_()
 
+    def event_view_domaintype(self):
+        dlg = ModalEditorDialog(self, 'domaintype')
+        dlg.exec_()
+
 
 class ProjectTableWidget(QTableWidget):
     def __init__(self, parent):
@@ -315,8 +324,8 @@ class ProjectTableWidget(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         pu = QFontInfo(self.font()).pixelSize()  # pixel unit, width of a single letter in pixel
-        column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
-        column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 10]
+        column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '분야', '비고']
+        column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 6, 10]
         for i in range(len(column_widths)):
             column_widths[i] *= pu
         self.setHorizontalHeaderLabels(column_headers)
@@ -366,7 +375,8 @@ class ProjectTableWidget(QTableWidget):
         self.setItem(row_index, 8, GetColItem(row['enddate']))
         self.setItem(row_index, 9, self.GetTaskType(row['id'], data))
         self.setItem(row_index, 10, GetColItem(row['nameeng']))
-        self.setItem(row_index, 11, GetColItem(row['memo']))
+        self.setItem(row_index, 11, self.GetDomainName(row['domain'], data))
+        self.setItem(row_index, 12, GetColItem(row['memo']))
 
     def GetNames(self, df):
         names = ''
@@ -405,6 +415,10 @@ class ProjectTableWidget(QTableWidget):
     def GetTaskType(self, project_id, data):
         df_merged = pd.merge(data.df_project_tasktype, data.df_tasktype, left_on='tasktype_id', right_on='id')[['project_id', 'name']]
         df_selected = df_merged.query('project_id == {}'.format(project_id))
+        return self.GetNames(df_selected)
+
+    def GetDomainName(self, domain_id, data):
+        df_selected = data.df_domaintype.query('id == {}'.format(domain_id))
         return self.GetNames(df_selected)
 
     def add_project(self):
@@ -544,6 +558,11 @@ class ProjectFormDialog(QDialog):
         self.ui_tasktypes_del = QPushButton("삭제")
         self.ui_tasktypes_add.clicked.connect(self.event_btn_addTaskType)
         self.ui_tasktypes_del.clicked.connect(self.event_btn_delTaskType)
+        self.ui_domain = QMyComboBox()
+        for index, row in self.projectData.df_domaintype.iterrows():
+            newIndex = self.ui_domain.count()
+            self.ui_domain.addItem(row['name'])
+            self.ui_domain.setItemData(newIndex, row['id'])
         # Initialize UI Objects for Dialog Ok/Cancel Buttons
         self.ui_ok = QPushButton("저장")
         self.ui_ok.setMinimumHeight(30)
@@ -595,6 +614,9 @@ class ProjectFormDialog(QDialog):
         gr += 1
         grid.addWidget(QLabel('영문명칭'), gr, 0, 1, 1)
         grid.addWidget(self.ui_nameeng, gr, 1, 1, 6)
+        gr += 1
+        grid.addWidget(QLabel('분야'), gr, 0, 1, 1)
+        grid.addWidget(self.ui_domain, gr, 1, 1, 6)
         gr += 1
         grid.addWidget(QLabel('비고'), gr, 0, 1, 1)
         grid.addWidget(self.ui_memo, gr, 1, 1, 6)
@@ -755,6 +777,8 @@ class ProjectFormDialog(QDialog):
         self.loadItemList('tasktype')
         if project['nameeng']:
             self.ui_nameeng.setText(str(project['nameeng']))
+        if project['domain']:
+            self.ui_domain.setText(str(project['nameeng']))
         if project['memo']:
             self.ui_memo.setText(str(project['memo']))
 
