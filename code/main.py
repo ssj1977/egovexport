@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, QSizePolicy, QFileDialog
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QWidget
 from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo
 from PyQt5.QtCore import Qt, QSize, QDate
 import sqlite3
@@ -99,6 +99,33 @@ class ProjectData:
         return replica
 
 
+class TableFilter:
+    def __init__(self):
+        self.year_min = None
+        self.year_max = None
+        self.contractor_type = None
+        self.price_min = None
+        self.price_max = None
+        self.name_keywords = []
+
+    def append_qs(self, qs, aqs):
+        if qs != '':
+            qs += ' and '
+        if aqs:
+            qs += aqs
+        return qs
+
+    def get_query_string(self):
+        qs = ''
+        if self.year_min:
+            qs = self.append_qs(qs, 'year >= {}'.format(self.year_min))
+        if self.year_max:
+            qs = self.append_qs(qs, 'year <= {}'.format(self.year_max))
+        return qs
+
+    def get_text(self):
+        return self.get_query_string()
+
 class QMyListWidgetItem (QListWidgetItem):
     def __init__(self):
         super().__init__()
@@ -126,6 +153,13 @@ class MyMain(QMainWindow):
         self.option_write_legend = True
         self.init_ui()
 
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, '종료', '저장하지 않은 변경사항은 사라집니다. 종료하시겠습니까?',
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        event.ignore()
+        if reply == QMessageBox.Yes:
+            event.accept()
+
     def add_command_ui(self, ui_id, ui_icon, ui_text, ui_hotkey, ui_func, ui_menu, ui_toolbar):
         tempAction = QAction(QIcon(ui_icon), ui_text, self)
         tempAction.setShortcut(ui_hotkey)
@@ -139,7 +173,8 @@ class MyMain(QMainWindow):
         return tempAction
 
     def init_ui(self):
-        self.projectTableWidget = ProjectTableWidget(self)
+        self.ui_frame = QMyFrameWidget(self)
+        self.ui_table = self.ui_frame.get_table_widget()
         pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
@@ -157,13 +192,14 @@ class MyMain(QMainWindow):
         menuDB.addSeparator()
         self.add_command_ui('id_export_list_in_csv', './res/csv.png', 'CSV 만들기', 'Ctrl+v', self.event_export_list_in_csv, menuDB, self.toolbar)
         menuDB.addSeparator()
-        self.add_command_ui('id_exit', './res/exit.png', '종료', 'Ctrl+Q', qApp.quit, menuDB, self.toolbar)
+        self.add_command_ui('id_exit', './res/exit.png', '종료', 'Ctrl+Q', self.close, menuDB, self.toolbar)
         self.toolbar.addSeparator()
-        self.add_command_ui('id_add', './res/add.png', '추가', 'Ctrl+a', self.projectTableWidget.add_project, menuProject, self.toolbar)
-        self.actions_selected.append(self.add_command_ui('id_edit', './res/edit.png', '수정', 'Ctrl+e', self.projectTableWidget.event_edit, menuProject, self.toolbar))
-        self.actions_selected.append(self.add_command_ui('id_delete', './res/delete.png', '삭제', 'Ctrl+d', self.projectTableWidget.event_delete, menuProject, self.toolbar))
+        self.add_command_ui('id_add', './res/add.png', '추가', 'Ctrl+a', self.ui_table.add_project, menuProject, self.toolbar)
+        self.actions_selected.append(self.add_command_ui('id_edit', './res/edit.png', '수정', 'Ctrl+e', self.ui_table.event_edit, menuProject, self.toolbar))
+        self.actions_selected.append(self.add_command_ui('id_delete', './res/delete.png', '삭제', 'Ctrl+d', self.ui_table.event_delete, menuProject, self.toolbar))
         menuProject.addSeparator()
         self.add_command_ui('id_refresh', './res/refresh.png', '다시읽기', 'Ctrl+r', self.event_refresh_data, menuProject, self.toolbar)
+        self.add_command_ui('id_filter', './res/filter.png', '조건설정', 'Ctrl+f', self.event_set_filter, menuProject, self.toolbar)
         self.add_command_ui('id_view_contractor', './res/contractor.png', '사업자 보기', 'Ctrl+1', self.event_view_contractor, menuContractor, None)
         self.add_command_ui('id_view_contact', './res/contact.png', '연락처 보기', 'Ctrl+2', self.event_view_contact, menuContractor, None)
         self.add_command_ui('id_view_fundtype', './res/fundtype.png', '자금유형 보기', 'Ctrl+3', self.event_view_fundtype, menuEtc, None)
@@ -173,7 +209,7 @@ class MyMain(QMainWindow):
         self.add_command_ui('id_view_contractortype', './res/contractor.png', '사업자 분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
         self.add_command_ui('id_view_domaintype', './res/domain.png', '분야 보기', 'Ctrl+6', self.event_view_domaintype, menuEtc, None)
 
-        self.setCentralWidget(self.projectTableWidget)
+        self.setCentralWidget(self.ui_frame)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
         self.setWindowIcon(QIcon('./res/app.png'))
         self.setGeometry(pu*12, pu*9, pu*60, pu*45)
@@ -182,7 +218,7 @@ class MyMain(QMainWindow):
         if err != '':
             ShowWarning(self, err)
         self.show()
-        self.projectTableWidget.itemSelectionChanged.connect(self.validate_action_ui_selected)
+        self.ui_table.itemSelectionChanged.connect(self.validate_action_ui_selected)
 
     def event_load_db(self):
         fname = QFileDialog.getOpenFileName(self, '데이터베이스 파일을 선택해 주세요', './', "SQLite Database (*.db)")
@@ -202,7 +238,7 @@ class MyMain(QMainWindow):
         db_name, db_ext = os.path.splitext(self.db_path)
         file_path, file_option = QFileDialog.getSaveFileName(self, '표시된 목록을 CSV 파일로 저장합니다.', db_name, "CSV (*.csv)")
         if file_path:
-            err = self.projectTableWidget.export_list_in_csv(file_path)
+            err = self.ui_table.export_list_in_csv(file_path)
             if err != '':
                 ShowWarning(self, err)
 
@@ -210,13 +246,13 @@ class MyMain(QMainWindow):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
         err = self.projectData.load_data(db_path)
         if err == '':
-            self.projectTableWidget.loadData()
+            self.ui_table.loadData()
             self.statusBar().showMessage('DB 데이터 읽기가 완료되었습니다.')
             self.setWindowTitle('전자정부 수출실적 데이터베이스: ' + db_path)
             self.db_path = db_path
         else:
-            self.projectTableWidget.clearContents()
-            self.projectTableWidget.setRowCount(0)
+            self.ui_table.clearContents()
+            self.ui_table.setRowCount(0)
             self.statusBar().showMessage('DB를 읽지 못했습니다.')
         self.validate_action_ui_all()
         return err
@@ -239,7 +275,7 @@ class MyMain(QMainWindow):
         if action.data() == 'id_load' or action.data() == 'id_exit' or action.data() is None:
             action.setEnabled(True)
         elif action.data() == 'id_edit' or action.data() == 'id_delete':
-            action.setEnabled(len(self.projectTableWidget.selectedItems())>0)
+            action.setEnabled(len(self.ui_table.selectedItems())>0)
         else:
             action.setEnabled(self.projectData.is_ready())
 
@@ -274,11 +310,17 @@ class MyMain(QMainWindow):
         if reply == QMessageBox.Yes:
             self.load_db(self.db_path)
 
+    def event_set_filter(self):
+        dlg = FilterDialog(self, self.ui_table.filter)
+        if dlg.exec_() == QDialog.Accepted:
+            self.ui_table.set_filter(dlg.filter)
+            self.ui_frame.set_filter(dlg.filter)
+
     def event_view_contractor(self):
         dlg = ModalEditorDialog(self, 'contractor')
         dlg.exec_()
         if dlg.is_changed() == True:
-            self.projectTableWidget.loadData()
+            self.ui_table.loadData()
 
     def event_view_contact(self):
         dlg = ModalEditorDialog(self, 'contact')
@@ -308,11 +350,39 @@ class MyMain(QMainWindow):
         dlg = ModalEditorDialog(self, 'domaintype')
         dlg.exec_()
 
+class QMyFrameWidget(QWidget):
+    def __init__(self, parent):
+        super().__init__()
+        self.projectData = parent.projectData
+        self.ui_table = None
+        self.init_ui()
+
+    def init_ui(self):
+        self.ui_table = ProjectTableWidget(self)
+        self.ui_filter = QLineEdit()
+        self.ui_filter.setReadOnly(True)
+        grid = QGridLayout()
+        grid.setContentsMargins(4,4,4,4)
+        grid.setSpacing(4)
+        self.setLayout(grid)
+        grid.addWidget(self.ui_filter, 0, 0)
+        grid.addWidget(self.ui_table, 1, 0)
+        self.set_filter(None)
+
+    def get_table_widget(self):
+        return self.ui_table
+
+    def set_filter(self, filter):
+        if filter is None:
+            self.ui_filter.setText("필터 없음 - 모든 사업 보기")
+        else:
+            self.ui_filter.setText(filter.get_text())
 
 class ProjectTableWidget(QTableWidget):
     def __init__(self, parent):
         super().__init__()
         self.projectData = parent.projectData
+        self.filter = None
         self.init_ui()
 
     def init_ui(self):
@@ -350,13 +420,22 @@ class ProjectTableWidget(QTableWidget):
     def event_cellDoubleClicked(self, row, col):
         self.edit_project(row)
 
+    def set_filter(self, filter):
+        self.filter = filter
+        self.loadData()
+
     def loadData(self):
         if not self.projectData.is_ready():
             return
         data = self.projectData
         self.clearContents()
         self.setRowCount(0)
-        for index, row in data.df_project.iterrows():
+
+        if self.filter is None:
+            df_temp = data.df_project
+        else:
+            df_temp = data.df_project.query(self.filter.get_query_string())
+        for index, row in df_temp.iterrows():
             new_row_index = self.rowCount()
             self.insertRow(new_row_index)
             self.updateRow(new_row_index, row)
@@ -492,6 +571,42 @@ class ProjectTableWidget(QTableWidget):
         csv_file.close()
         return ''
 
+class FilterDialog(QDialog):
+    def __init__(self, parent, filter=None):
+        super().__init__()
+        self.init_ui()
+        self.filter = filter
+
+    def init_ui(self):
+        self.ui_year_max = QLineEdit()
+        self.ui_year_max.setValidator(QIntValidator(1967, 9999))
+        self.ui_year_min = QLineEdit()
+        self.ui_year_min.setValidator(QIntValidator(1967, 9999))
+        self.ui_cancel = QPushButton("취소")
+        self.ui_ok = QPushButton("확인")
+        grid = QGridLayout()
+        self.setLayout(grid)
+        gr = 0
+        grid.addWidget(QLabel('귀속년도'), gr, 0)
+        grid.addWidget(self.ui_year_min, gr, 1)
+        grid.addWidget(QLabel('이후'), gr, 2)
+        grid.addWidget(self.ui_year_max, gr, 3)
+        grid.addWidget(QLabel('이전'), gr, 4)
+        gr += 1
+        grid.addWidget(self.ui_cancel, gr, 0)
+        grid.addWidget(self.ui_ok, gr, 2)
+        self.ui_cancel.clicked.connect(self.event_btn_cancel)
+        self.ui_ok.clicked.connect(self.event_btn_ok)
+
+    def event_btn_cancel(self):
+        self.reject()
+
+    def event_btn_ok(self):
+        if self.filter is None:
+            self.filter = TableFilter()
+        self.filter.year_max = int(self.ui_year_max.text())
+        self.filter.year_min = int(self.ui_year_min.text())
+        self.accept()
 
 class ProjectFormDialog(QDialog):
     def __init__(self, parent, project_id=None):
