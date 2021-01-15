@@ -30,6 +30,11 @@ def GetColItem(value, isRight=False, isReadOnly=False):
         item.setFlags(item.flags() ^ Qt.ItemIsEditable)
     return item
 
+def GetTitleLabel(str):
+    label_temp = QLabel(str)
+    label_temp.setStyleSheet("Background-color:#FEFEE7;font-weight:bold;border-style:solid;border-width:1px;border-color:#776633;")
+    label_temp.setAlignment(Qt.AlignHCenter | Qt.AlignCenter)
+    return label_temp
 
 class ProjectData:
     def __init__(self):
@@ -578,6 +583,7 @@ class FilterDialog(QDialog):
         self.filter = filter
 
     def init_ui(self):
+        self.ui_name = QLineEdit()
         self.ui_year_max = QLineEdit()
         self.ui_year_max.setValidator(QIntValidator(1967, 9999))
         self.ui_year_min = QLineEdit()
@@ -587,7 +593,10 @@ class FilterDialog(QDialog):
         grid = QGridLayout()
         self.setLayout(grid)
         gr = 0
-        grid.addWidget(QLabel('귀속년도'), gr, 0)
+        grid.addWidget(GetTitleLabel("시업명"), gr, 0)
+        grid.addWidget(self.ui_name, gr, 1, 1, 3)
+        gr += 1
+        grid.addWidget(GetTitleLabel("귀속년도"), gr, 0)
         grid.addWidget(self.ui_year_min, gr, 1)
         grid.addWidget(QLabel('이후'), gr, 2)
         grid.addWidget(self.ui_year_max, gr, 3)
@@ -694,49 +703,49 @@ class ProjectFormDialog(QDialog):
         grid = QGridLayout()
         self.setLayout(grid)
         gr = 0  # Grid Row
-        grid.addWidget(QLabel('사업이름'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('사업명'), gr, 0, 1, 1)
         grid.addWidget(self.ui_name, gr, 1, 1, 6)
         gr += 1
-        grid.addWidget(QLabel('귀속년도'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('귀속년도'), gr, 0, 1, 1)
         grid.addWidget(self.ui_year, gr, 1, 1, 2)
         gr += 1
-        grid.addWidget(QLabel('사업규모'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('사업규모'), gr, 0, 1, 1)
         grid.addWidget(self.ui_price, gr, 1, 1, 2)
         grid.addWidget(QLabel('USD'), gr, 3, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('사업기간'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('사업기간'), gr, 0, 1, 1)
         grid.addWidget(self.ui_startdate, gr, 1, 1, 2)
         grid.addWidget(QLabel('부터'), gr, 3, 1, 1)
         grid.addWidget(self.ui_enddate, gr, 4, 1, 2)
         grid.addWidget(QLabel('까지'), gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('대상국가'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('대상국가'), gr, 0, 1, 1)
         grid.addWidget(self.ui_countries, gr, 1, 1, 4)
         grid.addWidget(self.ui_countries_add, gr, 5, 1, 1)
         grid.addWidget(self.ui_countries_del, gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('사업자'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('사업자'), gr, 0, 1, 1)
         grid.addWidget(self.ui_contractors, gr, 1, 1, 4)
         grid.addWidget(self.ui_contractors_add, gr, 5, 1, 1)
         grid.addWidget(self.ui_contractors_del, gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('자금유형'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('자금유형'), gr, 0, 1, 1)
         grid.addWidget(self.ui_fundtypes, gr, 1, 1, 4)
         grid.addWidget(self.ui_fundtypes_add, gr, 5, 1, 1)
         grid.addWidget(self.ui_fundtypes_del, gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('과업유형'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('과업유형'), gr, 0, 1, 1)
         grid.addWidget(self.ui_tasktypes, gr, 1, 1, 4)
         grid.addWidget(self.ui_tasktypes_add, gr, 5, 1, 1)
         grid.addWidget(self.ui_tasktypes_del, gr, 6, 1, 1)
         gr += 1
-        grid.addWidget(QLabel('영문명칭'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('영문명칭'), gr, 0, 1, 1)
         grid.addWidget(self.ui_nameeng, gr, 1, 1, 6)
         gr += 1
-        grid.addWidget(QLabel('분야'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('분야'), gr, 0, 1, 1)
         grid.addWidget(self.ui_domain, gr, 1, 1, 6)
         gr += 1
-        grid.addWidget(QLabel('비고'), gr, 0, 1, 1)
+        grid.addWidget(GetTitleLabel('비고'), gr, 0, 1, 1)
         grid.addWidget(self.ui_memo, gr, 1, 1, 6)
         gr += 1
         grid.addWidget(self.ui_ok, gr, 5, 1, 1)
