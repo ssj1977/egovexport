@@ -12,6 +12,16 @@ import os.path
 import csv
 
 # Common Functions
+def int_from_ui(ui):
+    if ui.text():
+        return int(ui.text())
+    return None
+
+def str_from_ui(ui):
+    if ui.text():
+        return str(ui.text())
+    return None
+
 def ShowWarning(self, msg):
     QMessageBox.warning(self, '전자정부 수출실적 DB', msg, QMessageBox.Close, QMessageBox.Close)
 
@@ -106,12 +116,23 @@ class ProjectData:
 
 class TableFilter:
     def __init__(self):
+        self.name = None
         self.year_min = None
         self.year_max = None
-        self.contractor_type = None
         self.price_min = None
         self.price_max = None
-        self.name_keywords = []
+        self.startdate_min = None
+        self.startdate_max = None
+        self.enddate_min = None
+        self.enddate_max = None
+        self.nameeng = None
+        self.domain = None
+        self.memo = None
+        self.country_id = None
+        self.region_id = None
+        self.fundtype = None
+        self.contractor_id = None
+        self.contractor_type = None
 
     def append_qs(self, qs, aqs):
         if qs != '':
@@ -121,15 +142,45 @@ class TableFilter:
         return qs
 
     def get_query_string(self):
-        qs = ''
+        qs = ""
+        if self.name:
+            qs = self.append_qs(qs, "name LIKE '%%{}%% '".format(self.name))
         if self.year_min:
-            qs = self.append_qs(qs, 'year >= {}'.format(self.year_min))
+            qs = self.append_qs(qs, "year >= {}".format(self.year_min))
         if self.year_max:
-            qs = self.append_qs(qs, 'year <= {}'.format(self.year_max))
+            qs = self.append_qs(qs, "year <= {}".format(self.year_max))
+        if self.price_min:
+            qs = self.append_qs(qs, "price >= {}".format(self.price_min))
+        if self.price_max:
+            qs = self.append_qs(qs, "price <= {}".format(self.price_max))
+        if self.startdate_min:
+            qs = self.append_qs(qs, "startdate >= {}".format(self.startdate_min))
+        if self.startdate_max:
+            qs = self.append_qs(qs, "startdate <= {}".format(self.startdate_max))
+        if self.enddate_min:
+            qs = self.append_qs(qs, "enddate >= {}".format(self.enddate_min))
+        if self.enddate_max:
+            qs = self.append_qs(qs, "enddate <= {}".format(self.enddate_max))
+        if self.nameeng:
+            qs = self.append_qs(qs, "nameeng LIKE '%%{}%% '".format(self.nameeng))
+        if self.domain:
+            qs = self.append_qs(qs, "domain = {}".format(self.domain))
+        if self.memo:
+            qs = self.append_qs(qs, "memo LIKE '%%{}%% '".format(self.memo))
+        if self.country_id:
+            qs = self.append_qs(qs, "country_id = {}".format(self.country_id))
+        if self.region_id:
+            qs = self.append_qs(qs, "region_id = {}".format(self.region_id))
+        if self.fundtype:
+            qs = self.append_qs(qs, "fundtype_id = {}".format(self.fundtype))
+        if self.contractor_id:
+            qs = self.append_qs(qs, "contractor_id = {}".format(self.contractor_id))
+        if self.contractor_type:
+            qs = self.append_qs(qs, "contractor_type = {}".format(self.contractor_type))
         return qs
 
     def get_text(self):
-        return self.get_query_string()
+        return self.get_query_string() # must be changed later
 
 class QMyListWidgetItem (QListWidgetItem):
     def __init__(self):
@@ -387,7 +438,7 @@ class ProjectTableWidget(QTableWidget):
     def __init__(self, parent):
         super().__init__()
         self.projectData = parent.projectData
-        self.filter = None
+        self.filter = TableFilter()
         self.init_ui()
 
     def init_ui(self):
@@ -429,6 +480,51 @@ class ProjectTableWidget(QTableWidget):
         self.filter = filter
         self.loadData()
 
+    def check_filter(self,  row):
+        filter = self.filter
+        if filter.name:
+            if not (filter.name in row['name']):
+                return False
+        if filter.year_min:
+            if not (filter.year_min <= row['year']):
+                return False
+        if filter.year_max:
+            if not (filter.year_max >= row['year']):
+                return False
+        if filter.price_min:
+            if not (filter.price_min <= row['price']):
+                return False
+        if filter.price_max:
+            if not (filter.price_max >= row['price']):
+                return False
+        if filter.startdate_min:
+            if not (filter.startdate_min <= row['startdate']):
+                return False
+        if filter.startdate_max:
+            if not (filter.startdate_max >= row['startdate']):
+                return False
+        if filter.enddate_min:
+            if not (filter.enddate_min <= row['enddate']):
+                return False
+        if filter.enddate_max:
+            if not (filter.enddate_max >= row['enddate']):
+                return False
+        if filter.nameeng:
+            if not (filter.nameeng in row['nameeng']):
+                return False
+        if filter.memo:
+            if not (filter.memo in row['memo']):
+                return False
+        if filter.domain:
+            if not (filter.domain == row['domain']):
+                return False
+        # if filter.country_id:
+        # if filter.region_id:
+        # if filter.fundtype:
+        # if filter.contractor_id:
+        # if filter.contractor_type:
+        return True
+
     def loadData(self):
         if not self.projectData.is_ready():
             return
@@ -436,14 +532,11 @@ class ProjectTableWidget(QTableWidget):
         self.clearContents()
         self.setRowCount(0)
 
-        if self.filter is None:
-            df_temp = data.df_project
-        else:
-            df_temp = data.df_project.query(self.filter.get_query_string())
-        for index, row in df_temp.iterrows():
-            new_row_index = self.rowCount()
-            self.insertRow(new_row_index)
-            self.updateRow(new_row_index, row)
+        for index, row in data.df_project.iterrows():
+            if self.check_filter(row) == True:
+                new_row_index = self.rowCount()
+                self.insertRow(new_row_index)
+                self.updateRow(new_row_index, row)
         self.resizeRowsToContents()
 
     def updateRow(self, row_index, row):
@@ -613,8 +706,9 @@ class FilterDialog(QDialog):
     def event_btn_ok(self):
         if self.filter is None:
             self.filter = TableFilter()
-        self.filter.year_max = int(self.ui_year_max.text())
-        self.filter.year_min = int(self.ui_year_min.text())
+        self.filter.year_max = int_from_ui(self.ui_year_max)
+        self.filter.year_min = int_from_ui(self.ui_year_min)
+        self.filter.name = str_from_ui(self.ui_name)
         self.accept()
 
 class ProjectFormDialog(QDialog):
