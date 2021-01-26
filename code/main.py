@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, QSizePolicy, QFileDialog
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
-from PyQt5.QtWidgets import QMessageBox, QWidget
+from PyQt5.QtWidgets import QMessageBox, QWidget, QDialogButtonBox
 from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo
 from PyQt5.QtCore import Qt, QSize, QDate
 import sqlite3
@@ -20,6 +20,13 @@ def int_from_ui(ui):
 def str_from_ui(ui):
     if ui.text():
         return str(ui.text())
+    return None
+
+def id_from_ui_combo(ui):
+    ui_edit = ui.lineEdit()
+    index = ui.findText(ui_edit.text())
+    if index != -1:
+        return ui.itemData(index)
     return None
 
 def ShowWarning(self, msg):
@@ -42,7 +49,7 @@ def GetColItem(value, isRight=False, isReadOnly=False):
 
 def GetTitleLabel(str):
     label_temp = QLabel(str)
-    label_temp.setStyleSheet("Background-color:#FEFEE7;font-weight:bold;border-style:solid;border-width:1px;border-color:#776633;")
+    label_temp.setStyleSheet("Background-color:#888888;font-weight:bold;border-style:solid;border-width:1px;border-color:#7A7A7A;color:#F0F0F0;")
     label_temp.setAlignment(Qt.AlignHCenter | Qt.AlignCenter)
     return label_temp
 
@@ -121,18 +128,12 @@ class TableFilter:
         self.year_max = None
         self.price_min = None
         self.price_max = None
-        self.startdate_min = None
-        self.startdate_max = None
-        self.enddate_min = None
-        self.enddate_max = None
         self.nameeng = None
-        self.domain = None
-        self.memo = None
         self.country_id = None
         self.region_id = None
-        self.fundtype = None
+        self.fundtype_id = None
         self.contractor_id = None
-        self.contractor_type = None
+        self.contractortype_id = None
 
     def append_qs(self, qs, aqs):
         if qs != '':
@@ -153,30 +154,18 @@ class TableFilter:
             qs = self.append_qs(qs, "price >= {}".format(self.price_min))
         if self.price_max:
             qs = self.append_qs(qs, "price <= {}".format(self.price_max))
-        if self.startdate_min:
-            qs = self.append_qs(qs, "startdate >= {}".format(self.startdate_min))
-        if self.startdate_max:
-            qs = self.append_qs(qs, "startdate <= {}".format(self.startdate_max))
-        if self.enddate_min:
-            qs = self.append_qs(qs, "enddate >= {}".format(self.enddate_min))
-        if self.enddate_max:
-            qs = self.append_qs(qs, "enddate <= {}".format(self.enddate_max))
         if self.nameeng:
             qs = self.append_qs(qs, "nameeng LIKE '%%{}%% '".format(self.nameeng))
-        if self.domain:
-            qs = self.append_qs(qs, "domain = {}".format(self.domain))
-        if self.memo:
-            qs = self.append_qs(qs, "memo LIKE '%%{}%% '".format(self.memo))
         if self.country_id:
             qs = self.append_qs(qs, "country_id = {}".format(self.country_id))
         if self.region_id:
             qs = self.append_qs(qs, "region_id = {}".format(self.region_id))
-        if self.fundtype:
-            qs = self.append_qs(qs, "fundtype_id = {}".format(self.fundtype))
+        if self.fundtype_id:
+            qs = self.append_qs(qs, "fundtype_id = {}".format(self.fundtype_id))
         if self.contractor_id:
             qs = self.append_qs(qs, "contractor_id = {}".format(self.contractor_id))
-        if self.contractor_type:
-            qs = self.append_qs(qs, "contractor_type = {}".format(self.contractor_type))
+        if self.contractortype_id:
+            qs = self.append_qs(qs, "contractortype_id = {}".format(self.fundtype_id))
         return qs
 
     def get_text(self):
@@ -406,19 +395,17 @@ class MyMain(QMainWindow):
         dlg = ModalEditorDialog(self, 'domaintype')
         dlg.exec_()
 
+
 class QMyFrameWidget(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.projectData = parent.projectData
         self.ui_table = None
-        self.init_ui()
-
-    def init_ui(self):
         self.ui_table = ProjectTableWidget(self)
         self.ui_filter = QLineEdit()
         self.ui_filter.setReadOnly(True)
         grid = QGridLayout()
-        grid.setContentsMargins(4,4,4,4)
+        grid.setContentsMargins(4, 4, 4, 4)
         grid.setSpacing(4)
         self.setLayout(grid)
         grid.addWidget(self.ui_filter, 0, 0)
@@ -434,14 +421,12 @@ class QMyFrameWidget(QWidget):
         else:
             self.ui_filter.setText(filter.get_text())
 
+
 class ProjectTableWidget(QTableWidget):
     def __init__(self, parent):
         super().__init__()
         self.projectData = parent.projectData
         self.filter = TableFilter()
-        self.init_ui()
-
-    def init_ui(self):
         column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '분야', '비고']
         column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 6, 10]
         self.setRowCount(0)
@@ -482,47 +467,80 @@ class ProjectTableWidget(QTableWidget):
 
     def check_filter(self,  row):
         filter = self.filter
-        if filter.name:
+        if filter.name is not None:
             if not (filter.name in row['name']):
                 return False
-        if filter.year_min:
+        if filter.year_min is not None:
             if not (filter.year_min <= row['year']):
                 return False
-        if filter.year_max:
+        if filter.year_max is not None:
             if not (filter.year_max >= row['year']):
                 return False
-        if filter.price_min:
+        if filter.price_min is not None:
             if not (filter.price_min <= row['price']):
                 return False
-        if filter.price_max:
+        if filter.price_max is not None:
             if not (filter.price_max >= row['price']):
                 return False
-        if filter.startdate_min:
-            if not (filter.startdate_min <= row['startdate']):
-                return False
-        if filter.startdate_max:
-            if not (filter.startdate_max >= row['startdate']):
-                return False
-        if filter.enddate_min:
-            if not (filter.enddate_min <= row['enddate']):
-                return False
-        if filter.enddate_max:
-            if not (filter.enddate_max >= row['enddate']):
-                return False
-        if filter.nameeng:
+        if filter.nameeng is not None:
             if not (filter.nameeng in row['nameeng']):
                 return False
-        if filter.memo:
-            if not (filter.memo in row['memo']):
+        if filter.country_id is not None:
+            df_temp = self.projectData.df_project_country
+            df_temp = df_temp[df_temp['project_id'] == row['id']]
+            result = False
+            for index, sub_row in df_temp.iterrows():
+                if sub_row['country_id'] == filter.country_id:
+                    result = True
+                    break
+            if not result:
                 return False
-        if filter.domain:
-            if not (filter.domain == row['domain']):
+        if filter.region_id is not None:
+            df_temp = pd.merge(self.projectData.df_project_country, \
+                               self.projectData.df_country, \
+                               left_on='country_id', \
+                               right_on='id')[['project_id', 'region_id']]
+            df_temp = df_temp[df_temp['project_id'] == row['id']]
+            result = False
+            for index, sub_row in df_temp.iterrows():
+                if sub_row['region_id'] == filter.region_id:
+                    result = True
+                    break
+            if not result:
                 return False
-        # if filter.country_id:
-        # if filter.region_id:
-        # if filter.fundtype:
-        # if filter.contractor_id:
-        # if filter.contractor_type:
+        if filter.fundtype_id is not None:
+            df_temp = self.projectData.df_project_fund
+            df_temp = df_temp[df_temp['project_id'] == row['id']]
+            result = False
+            for index, sub_row in df_temp.iterrows():
+                if sub_row['fundtype_id'] == filter.fundtype_id:
+                    result = True
+                    break
+            if not result:
+                return False
+        if filter.contractor_id is not None:
+            df_temp = self.projectData.df_project_contractor
+            df_temp = df_temp[df_temp['project_id'] == row['id']]
+            result = False
+            for index, sub_row in df_temp.iterrows():
+                if sub_row['contractor_id'] == filter.contractor_id:
+                    result = True
+                    break
+            if not result:
+                return False
+        if filter.contractortype_id:
+            df_temp = pd.merge(self.projectData.df_project_contractor, \
+                               self.projectData.df_contractor, \
+                               left_on='contractor_id', \
+                               right_on='id')[['project_id', 'type']]
+            df_temp = df_temp[df_temp['project_id'] == row['id']]
+            result = False
+            for index, sub_row in df_temp.iterrows():
+                if sub_row['type'] == filter.contractortype_id:
+                    result = True
+                    break
+            if not result:
+                return False
         return True
 
     def loadData(self):
@@ -669,36 +687,98 @@ class ProjectTableWidget(QTableWidget):
         csv_file.close()
         return ''
 
+
 class FilterDialog(QDialog):
     def __init__(self, parent, filter=None):
         super().__init__()
-        self.init_ui()
+        self.tables = parent.projectData
         self.filter = filter
-
-    def init_ui(self):
+        self.setWindowIcon(QIcon('./res/filter.png'))
+        self.setWindowTitle('검색 조건 설정')
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        grid = QGridLayout()
+        self.setLayout(grid)
+        gr = 0
         self.ui_name = QLineEdit()
+        grid.addWidget(GetTitleLabel("시업명"), gr, 0)
+        grid.addWidget(self.ui_name, gr, 1, 1, 4)
+        gr += 1
         self.ui_year_max = QLineEdit()
         self.ui_year_max.setValidator(QIntValidator(1967, 9999))
         self.ui_year_min = QLineEdit()
         self.ui_year_min.setValidator(QIntValidator(1967, 9999))
-        self.ui_cancel = QPushButton("취소")
-        self.ui_ok = QPushButton("확인")
-        grid = QGridLayout()
-        self.setLayout(grid)
-        gr = 0
-        grid.addWidget(GetTitleLabel("시업명"), gr, 0)
-        grid.addWidget(self.ui_name, gr, 1, 1, 3)
-        gr += 1
         grid.addWidget(GetTitleLabel("귀속년도"), gr, 0)
         grid.addWidget(self.ui_year_min, gr, 1)
-        grid.addWidget(QLabel('이후'), gr, 2)
+        grid.addWidget(QLabel('년도 이후'), gr, 2)
         grid.addWidget(self.ui_year_max, gr, 3)
-        grid.addWidget(QLabel('이전'), gr, 4)
+        grid.addWidget(QLabel('년도 이전'), gr, 4)
         gr += 1
-        grid.addWidget(self.ui_cancel, gr, 0)
-        grid.addWidget(self.ui_ok, gr, 2)
+        self.ui_price_min = QLineEdit()
+        self.ui_price_min.setValidator(QIntValidator(0, 999999999))
+        self.ui_price_max = QLineEdit()
+        self.ui_price_max.setValidator(QIntValidator(0, 999999999))
+        grid.addWidget(GetTitleLabel("사업규모"), gr, 0)
+        grid.addWidget(self.ui_price_min, gr, 1)
+        grid.addWidget(QLabel('USD 이상'), gr, 2)
+        grid.addWidget(self.ui_price_max, gr, 3)
+        grid.addWidget(QLabel('USD 이하'), gr, 4)
+        gr += 1
+        self.ui_nameeng = QLineEdit()
+        grid.addWidget(GetTitleLabel("영문명칭"), gr, 0)
+        grid.addWidget(self.ui_nameeng, gr, 1, 1, 4)
+        gr += 1
+        self.ui_country = QComboBox()
+        self.init_combo(self.ui_country, 'country')
+        grid.addWidget(GetTitleLabel("대상국가"), gr, 0)
+        grid.addWidget(self.ui_country, gr, 1, 1, 4)
+        gr += 1
+        self.ui_region = QComboBox()
+        self.init_combo(self.ui_region, 'region')
+        grid.addWidget(GetTitleLabel("지역구분"), gr, 0)
+        grid.addWidget(self.ui_region, gr, 1, 1, 4)
+        gr += 1
+        self.ui_contractor = QComboBox()
+        self.init_combo(self.ui_contractor, 'contractor')
+        grid.addWidget(GetTitleLabel("사업자"), gr, 0)
+        grid.addWidget(self.ui_contractor, gr, 1, 1, 4)
+        gr += 1
+        self.ui_contractor_type = QComboBox()
+        self.init_combo(self.ui_contractor_type, 'contractortype')
+        grid.addWidget(GetTitleLabel("기업유형"), gr, 0)
+        grid.addWidget(self.ui_contractor_type, gr, 1, 1, 4)
+        gr += 1
+        self.ui_fundtype = QComboBox()
+        self.init_combo(self.ui_fundtype, 'fundtype')
+        grid.addWidget(GetTitleLabel("자금유형"), gr, 0)
+        grid.addWidget(self.ui_fundtype, gr, 1, 1, 4)
+        gr += 1
+        self.ui_cancel = QPushButton("취소")
+        self.ui_ok = QPushButton("확인")
         self.ui_cancel.clicked.connect(self.event_btn_cancel)
         self.ui_ok.clicked.connect(self.event_btn_ok)
+        grid.addWidget(self.ui_ok, gr, 3, 1, 1)
+        grid.addWidget(self.ui_cancel, gr, 4, 1, 1)
+
+    def init_combo(self, cb, type):
+        if type == 'contractor':
+            data = self.tables.df_contractor
+        elif type == 'contractortype':
+            data = self.tables.df_contractortype
+        elif type == 'country':
+            data = self.tables.df_country
+        elif type == 'region':
+            data = self.tables.df_region
+        elif type == 'fundtype':
+            data = self.tables.df_fundtype
+        cb.setEditable(True)
+        cb.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        cb.addItem('')
+        cb.setItemData(0, None)
+        for index, row in data.iterrows():
+            newIndex = cb.count()
+            cb.addItem(row['name'])
+            cb.setItemData(newIndex, row['id'])
+        cb.setInsertPolicy(QComboBox.NoInsert)
 
     def event_btn_cancel(self):
         self.reject()
@@ -709,7 +789,16 @@ class FilterDialog(QDialog):
         self.filter.year_max = int_from_ui(self.ui_year_max)
         self.filter.year_min = int_from_ui(self.ui_year_min)
         self.filter.name = str_from_ui(self.ui_name)
+        self.filter.nameeng = str_from_ui(self.ui_nameeng)
+        self.filter.price_max = int_from_ui(self.ui_price_max)
+        self.filter.price_min = int_from_ui(self.ui_price_min)
+        self.filter.contractor_id = id_from_ui_combo(self.ui_contractor)
+        self.filter.country_id = id_from_ui_combo(self.ui_country)
+        self.filter.fundtype_id = id_from_ui_combo(self.ui_fundtype)
+        self.filter.contractortype_id = id_from_ui_combo(self.ui_contractor_type)
+        self.filter.region_id = id_from_ui_combo(self.ui_region)
         self.accept()
+
 
 class ProjectFormDialog(QDialog):
     def __init__(self, parent, project_id=None):
