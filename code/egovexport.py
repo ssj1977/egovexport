@@ -283,9 +283,13 @@ class MyMain(QMainWindow):
         db_name, db_ext = os.path.splitext(self.db_path)
         file_path, file_option = QFileDialog.getSaveFileName(self, '표시된 목록을 CSV 파일로 저장합니다.', db_name, "CSV (*.csv)")
         if file_path:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
             err = self.ui_table.export_list_in_csv(file_path)
+            QApplication.restoreOverrideCursor()
             if err != '':
                 ShowWarning(self, err)
+            else:
+                ShowWarning(self, "CSV 파일을 저장했습니다.")
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
@@ -348,7 +352,7 @@ class MyMain(QMainWindow):
         except Exception as err:
             ShowWarning(self, str(err))
             return False
-        ShowWarning(self, "데이터베이스에 저장되었습니다..")
+        ShowWarning(self, "데이터베이스에 저장되었습니다.")
         return True
 
     def event_refresh_data(self):
