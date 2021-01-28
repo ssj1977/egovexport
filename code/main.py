@@ -67,7 +67,7 @@ class ProjectData:
         self.df_contact = None
         self.df_tasktype = None
         self.df_project_tasktype = None
-        self.df_domaintype = None
+#        self.df_domaintype = None
 
     def is_ready(self):
         if self.df_project is None:
@@ -96,7 +96,7 @@ class ProjectData:
             self.df_contact = pd.read_sql("SELECT * FROM contact", con)
             self.df_tasktype = pd.read_sql("SELECT * FROM tasktype", con)
             self.df_project_tasktype = pd.read_sql("SELECT * FROM project_tasktype", con)
-            self.df_domaintype = pd.read_sql("SELECT * FROM domaintype", con)
+#            self.df_domaintype = pd.read_sql("SELECT * FROM domaintype", con)
             con.close()
         except Exception as err:
             self.df_project = None
@@ -117,7 +117,7 @@ class ProjectData:
         replica.df_contact = self.df_contact.copy()
         replica.df_tasktype = self.df_tasktype.copy()
         replica.df_project_tasktype = self.df_project_tasktype.copy()
-        replica.df_domaintype = self.df_domaintype.copy()
+#        replica.df_domaintype = self.df_domaintype.copy()
         return replica
 
 
@@ -165,7 +165,7 @@ class TableFilter:
         if self.contractor_id:
             qs = self.append_qs(qs, "contractor_id = {}".format(self.contractor_id))
         if self.contractortype_id:
-            qs = self.append_qs(qs, "contractortype_id = {}".format(self.fundtype_id))
+            qs = self.append_qs(qs, "contractortype_id = {}".format(self.contractortype_id))
         return qs
 
     def get_text(self):
@@ -252,7 +252,7 @@ class MyMain(QMainWindow):
         self.add_command_ui('id_view_country', './res/country.png', '국가 보기', 'Ctrl+5', self.event_view_country, menuEtc, None)
         self.add_command_ui('id_view_region', './res/region.png', '지역 보기', 'Ctrl+6', self.event_view_region, menuEtc, None)
         self.add_command_ui('id_view_contractortype', './res/contractor.png', '사업자 분류 보기', 'Ctrl+7', self.event_view_contractortype, menuEtc, None)
-        self.add_command_ui('id_view_domaintype', './res/domain.png', '분야 보기', 'Ctrl+6', self.event_view_domaintype, menuEtc, None)
+#        self.add_command_ui('id_view_domaintype', './res/domain.png', '분야 보기', 'Ctrl+6', self.event_view_domaintype, menuEtc, None)
 
         self.setCentralWidget(self.ui_frame)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
@@ -289,6 +289,7 @@ class MyMain(QMainWindow):
 
     def load_db(self, db_path):
         self.statusBar().showMessage('DB에서 데이터를 읽어들이고 있습니다...')
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         err = self.projectData.load_data(db_path)
         if err == '':
             self.ui_table.loadData()
@@ -300,6 +301,7 @@ class MyMain(QMainWindow):
             self.ui_table.setRowCount(0)
             self.statusBar().showMessage('DB를 읽지 못했습니다.')
         self.validate_action_ui_all()
+        QApplication.restoreOverrideCursor()
         return err
 
     def validate_action_ui_selected(self):
@@ -341,7 +343,7 @@ class MyMain(QMainWindow):
                 data.df_region.to_sql('region', con, if_exists='replace', index=False)
                 data.df_contractortype.to_sql('contractortype', con, if_exists='replace', index=False)
                 data.df_tasktype.to_sql('tasktype', con, if_exists='replace', index=False)
-                data.df_domaintype.to_sql('domaintype', con, if_exists='replace', index=False)
+#                data.df_domaintype.to_sql('domaintype', con, if_exists='replace', index=False)
             con.close()
         except Exception as err:
             ShowWarning(self, str(err))
@@ -391,9 +393,9 @@ class MyMain(QMainWindow):
         dlg = ModalEditorDialog(self, 'contractortype')
         dlg.exec_()
 
-    def event_view_domaintype(self):
-        dlg = ModalEditorDialog(self, 'domaintype')
-        dlg.exec_()
+#    def event_view_domaintype(self):
+#        dlg = ModalEditorDialog(self, 'domaintype')
+#        dlg.exec_()
 
 
 class QMyFrameWidget(QWidget):
@@ -427,8 +429,8 @@ class ProjectTableWidget(QTableWidget):
         super().__init__()
         self.projectData = parent.projectData
         self.filter = TableFilter()
-        column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '분야', '비고']
-        column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 6, 10]
+        column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
+        column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 10]
         self.setRowCount(0)
         self.setColumnCount(len(column_headers))
         self.horizontalHeader().setStyleSheet("::section{Background-color:rgb(190,200,220);}")
@@ -528,7 +530,7 @@ class ProjectTableWidget(QTableWidget):
                     break
             if not result:
                 return False
-        if filter.contractortype_id:
+        if filter.contractortype_id is not None:
             df_temp = pd.merge(self.projectData.df_project_contractor, \
                                self.projectData.df_contractor, \
                                left_on='contractor_id', \
@@ -570,8 +572,8 @@ class ProjectTableWidget(QTableWidget):
         self.setItem(row_index, 8, GetColItem(row['enddate']))
         self.setItem(row_index, 9, self.GetTaskType(row['id'], data))
         self.setItem(row_index, 10, GetColItem(row['nameeng']))
-        self.setItem(row_index, 11, self.GetDomainName(row['domain'], data))
-        self.setItem(row_index, 12, GetColItem(row['memo']))
+        self.setItem(row_index, 11, GetColItem(row['memo']))
+        #self.setItem(row_index, 12, self.GetDomainName(row['domain'], data))
 
     def GetNames(self, df):
         names = ''
@@ -612,9 +614,9 @@ class ProjectTableWidget(QTableWidget):
         df_selected = df_merged.query('project_id == {}'.format(project_id))
         return self.GetNames(df_selected)
 
-    def GetDomainName(self, domain_id, data):
-        df_selected = data.df_domaintype.query('id == {}'.format(domain_id))
-        return self.GetNames(df_selected)
+    #def GetDomainName(self, domain_id, data):
+    #    df_selected = data.df_domaintype.query('id == {}'.format(domain_id))
+    #    return self.GetNames(df_selected)
 
     def add_project(self):
         dlg = ProjectFormDialog(self, None)
@@ -865,14 +867,14 @@ class ProjectFormDialog(QDialog):
         self.ui_tasktypes_del = QPushButton("삭제")
         self.ui_tasktypes_add.clicked.connect(self.event_btn_addTaskType)
         self.ui_tasktypes_del.clicked.connect(self.event_btn_delTaskType)
-        self.ui_domain = QMyComboBox()
-        self.ui_domain.setEditable(True)
-        self.ui_domain.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
-        self.ui_domain.setInsertPolicy(QComboBox.NoInsert)
-        for index, row in self.projectData.df_domaintype.iterrows():
-            newIndex = self.ui_domain.count()
-            self.ui_domain.addItem(row['name'])
-            self.ui_domain.setItemData(newIndex, row['id'])
+#        self.ui_domain = QMyComboBox()
+#        self.ui_domain.setEditable(True)
+#        self.ui_domain.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+#        self.ui_domain.setInsertPolicy(QComboBox.NoInsert)
+#        for index, row in self.projectData.df_domaintype.iterrows():
+#            newIndex = self.ui_domain.count()
+#            self.ui_domain.addItem(row['name'])
+#            self.ui_domain.setItemData(newIndex, row['id'])
         # Initialize UI Objects for Dialog Ok/Cancel Buttons
         self.ui_ok = QPushButton("저장")
         self.ui_ok.setMinimumHeight(30)
@@ -924,9 +926,9 @@ class ProjectFormDialog(QDialog):
         gr += 1
         grid.addWidget(GetTitleLabel('영문명칭'), gr, 0, 1, 1)
         grid.addWidget(self.ui_nameeng, gr, 1, 1, 6)
-        gr += 1
-        grid.addWidget(GetTitleLabel('분야'), gr, 0, 1, 1)
-        grid.addWidget(self.ui_domain, gr, 1, 1, 6)
+#        gr += 1
+#        grid.addWidget(GetTitleLabel('분야'), gr, 0, 1, 1)
+#        grid.addWidget(self.ui_domain, gr, 1, 1, 6)
         gr += 1
         grid.addWidget(GetTitleLabel('비고'), gr, 0, 1, 1)
         grid.addWidget(self.ui_memo, gr, 1, 1, 6)
@@ -1087,9 +1089,9 @@ class ProjectFormDialog(QDialog):
         self.loadItemList('tasktype')
         if project['nameeng']:
             self.ui_nameeng.setText(str(project['nameeng']))
-        if project['domain']:
-            row_temp = data.df_domaintype[data.df_domaintype['id'] == project['domain']].iloc[0]
-            self.ui_domain.setCurrentText(row_temp['name'])
+#        if project['domain']:
+#            row_temp = data.df_domaintype[data.df_domaintype['id'] == project['domain']].iloc[0]
+#            self.ui_domain.setCurrentText(row_temp['name'])
         if project['memo']:
             self.ui_memo.setText(str(project['memo']))
 
@@ -1116,11 +1118,11 @@ class ProjectFormDialog(QDialog):
         startdate = self.ui_startdate.date().toString(Qt.ISODate)
         enddate = self.ui_enddate.date().toString(Qt.ISODate)
         nameeng = self.ui_nameeng.text()
-        domain = self.ui_domain.currentData()
+#        domain = self.ui_domain.currentData()
         memo = self.ui_memo.text()
         df_update = pd.DataFrame(
             {'id': [project_id], 'name': [name], 'year': [year], 'price': [price],
-             'startdate': [startdate], 'enddate': [enddate], 'nameeng': [nameeng], 'domain': [domain], 'memo': [memo]})
+             'startdate': [startdate], 'enddate': [enddate], 'nameeng': [nameeng], 'memo': [memo]})
         if self.add_new:  # 추가
             self.projectData.df_project = self.projectData.df_project.append(df_update, ignore_index=True)
         else:  # 수정
@@ -1243,9 +1245,9 @@ class ModalEditorTableWidget(QTableWidget):
         elif self.table_type == 'tasktype':
             column_headers = ['', '코드', '유형', '참조']
             column_widths = [1, 2, 12, 5]
-        elif self.table_type == 'domaintype':
-            column_headers = ['', '코드', '분야', '참조']
-            column_widths = [1, 2, 12, 5]
+#        elif self.table_type == 'domaintype':
+#            column_headers = ['', '코드', '분야', '참조']
+#            column_widths = [1, 2, 12, 5]
         else:
             ShowWarning("해당하는 항목정보가 없습니다.")
             return
@@ -1278,8 +1280,8 @@ class ModalEditorTableWidget(QTableWidget):
             return self.tempData.df_contractortype
         elif self.table_type == 'tasktype':
             return self.tempData.df_tasktype
-        elif self.table_type == 'domaintype':
-            return self.tempData.df_domaintype
+#        elif self.table_type == 'domaintype':
+#            return self.tempData.df_domaintype
         else:
             return None
 
@@ -1298,8 +1300,8 @@ class ModalEditorTableWidget(QTableWidget):
             self.tempData.df_contractortype = df_temp
         elif self.table_type == 'tasktype':
             self.tempData.df_tasktype = df_temp
-        elif self.table_type == 'domaintype':
-            self.tempData.df_domaintype = df_temp
+#        elif self.table_type == 'domaintype':
+#            self.tempData.df_domaintype = df_temp
 
     def init_combo_type(self, cb):
         if self.table_type == 'contractor':
@@ -1310,8 +1312,8 @@ class ModalEditorTableWidget(QTableWidget):
             data = self.tempData.df_region   # 지역
         elif self.table_type == 'tasktype':
             data = self.tempData.df_tasktype  # 지역
-        elif self.table_type == 'domaintype':
-            data = self.tempData.df_domaintype  # 지역
+#        elif self.table_type == 'domaintype':
+#            data = self.tempData.df_domaintype  # 지역
         for index, row in data.iterrows():
             newIndex = cb.count()
             cb.addItem(row['name'])
@@ -1391,10 +1393,10 @@ class ModalEditorTableWidget(QTableWidget):
             df_temp = self.tempData.df_project_tasktype
             reference_counter = len(df_temp[df_temp['tasktype_id'] == row['id']].index)  # 사업과 연결된 회수
             self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
-        elif self.table_type == 'domaintype':
-            df_temp = self.tempData.df_project
-            reference_counter = len(df_temp[df_temp['domain'] == row['id']].index)  # 사업과 연결된 회수
-            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
+#        elif self.table_type == 'domaintype':
+#            df_temp = self.tempData.df_project
+#            reference_counter = len(df_temp[df_temp['domain'] == row['id']].index)  # 사업과 연결된 회수
+#            self.setItem(row_index, 3, GetColItem(reference_counter, True, True))
 
     def add_new_row(self):
         new_row_index = self.rowCount()
@@ -1412,7 +1414,7 @@ class ModalEditorTableWidget(QTableWidget):
             values = {'id': new_id, 'name': '', 'phone': '', 'email': '', 'address': '',
                       'contractor_id': 0, 'updatedate':QDate.currentDate().toString(Qt.ISODate)}
             types = {'id': np.int, 'contractor_id': np.int}
-        elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == 'tasktype' or self.table_type == 'domaintype':
+        elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == 'tasktype' :
             values = {'id': new_id, 'name': ''}
             types = {'id': np.int}
         elif self.table_type == 'country':
@@ -1440,7 +1442,7 @@ class ModalEditorTableWidget(QTableWidget):
             bool_delete = check_box.isChecked()
             if bool_delete == True:
                 # 다른 데이터에서 참조되고 있는 값의 경우 삭제하지 않음
-                ref_counter_col = {'contractor': 6, 'contact': -1, 'fundtype': 3, 'country': 4, 'region': 3, 'contractortype': 3, 'tasktype': 3, 'domaintype':3}
+                ref_counter_col = {'contractor': 6, 'contact': -1, 'fundtype': 3, 'country': 4, 'region': 3, 'contractortype': 3, 'tasktype': 3}
                 if ref_counter_col != -1:
                     if int(self.item(row_index, ref_counter_col[self.table_type]).text()) > 0:
                         bool_delete = False
@@ -1474,11 +1476,11 @@ class ModalEditorTableWidget(QTableWidget):
             self.tempData.df_tasktype.update(df_update.set_index('id'))
             self.tempData.df_tasktype.reset_index(inplace=True)
             self.projectData.df_tasktype = self.tempData.df_tasktype
-        elif self.table_type == 'domaintype':
-            self.tempData.df_domaintype.set_index('id', inplace=True)
-            self.tempData.df_domaintype.update(df_update.set_index('id'))
-            self.tempData.df_domaintype.reset_index(inplace=True)
-            self.projectData.df_domaintype = self.tempData.df_domaintype
+#        elif self.table_type == 'domaintype':
+#            self.tempData.df_domaintype.set_index('id', inplace=True)
+#            self.tempData.df_domaintype.update(df_update.set_index('id'))
+#            self.tempData.df_domaintype.reset_index(inplace=True)
+#            self.projectData.df_domaintype = self.tempData.df_domaintype
         elif self.table_type == 'country':
             self.tempData.df_country.set_index('id', inplace=True)
             self.tempData.df_country.update(df_update.set_index('id'))
@@ -1503,7 +1505,7 @@ class ModalEditorTableWidget(QTableWidget):
             id = int(self.item(row_index, 1).text())
             name = self.item(row_index, 2).text()
             if name.strip() == '':
-                ShowWarning(self, "{}번 줄에 항목 이름이 비어 있습니다.".format(row_index + 1))
+                ShowWarning(self, "{}번째 줄에 항목 이름이 비어 있습니다.".format(row_index + 1))
                 return
             if self.table_type == 'contractor':
                 type = int(self.cellWidget(row_index, 3).currentData())
@@ -1517,7 +1519,7 @@ class ModalEditorTableWidget(QTableWidget):
             elif self.table_type == 'contact':
                 contractor_id = self.cellWidget(row_index, 3).currentData()
                 if contractor_id is None:
-                    ShowWarning(self, "{}번 줄에 소속이 지정되지 않았습니다.".format(row_index + 1))
+                    ShowWarning(self, "{}번째 줄에 소속이 지정되지 않았습니다.".format(row_index + 1))
                     return
                 phone = self.item(row_index, 4).text()
                 email = self.item(row_index, 5).text()
@@ -1536,7 +1538,7 @@ class ModalEditorTableWidget(QTableWidget):
                     df_update = df_temp
                 else:
                     df_update = df_update.append(df_temp, ignore_index=True).astype({'id': np.int, 'region_id': np.int})
-            elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == 'tasktype' or self.table_type == 'domaintype':
+            elif self.table_type == 'fundtype' or self.table_type == 'region' or self.table_type == 'contractortype' or self.table_type == 'tasktype':
                 df_temp = pd.DataFrame({'id': [id], 'name': [name]})
                 if df_update is None:
                     df_update = df_temp
@@ -1598,9 +1600,9 @@ class ModalEditorDialog(QDialog):
         elif self.table_type == 'tasktype':
             title_text = '사업 유형'
             icon_path = './res/tasktype.png'
-        elif self.table_type == 'domaintype':
-            title_text = '사업 분야'
-            icon_path = './res/domain.png'
+#        elif self.table_type == 'domaintype':
+#            title_text = '사업 분야'
+#            icon_path = './res/domain.png'
         elif self.table_type == 'country':
             title_text = '국가 목록'
             icon_path = './res/country.png'
