@@ -32,13 +32,20 @@ def id_from_ui_combo(ui):
 def ShowWarning(self, msg):
     QMessageBox.warning(self, '전자정부 수출실적 DB', msg, QMessageBox.Close, QMessageBox.Close)
 
-def GetColItem(value, isRight=False, isReadOnly=False):
+def GetColItem(value, isRight=False, isReadOnly=False, sort_type=0):
     text = ''
     if type(value) != type(text):
         text = str(value)
     else:
         text = value
-    item = QTableWidgetItem(text)
+    item = None
+    if sort_type == 1: #number
+        item = QMyTableWidgetItem_Number(text)
+    elif sort_type == 2: #usd
+        item = QMyTableWidgetItem_USD(text)
+    else:
+        item = QTableWidgetItem(text)
+
     if isRight == True:
         item.setTextAlignment(Qt.AlignRight | Qt.AlignCenter)
     else:
@@ -145,7 +152,7 @@ class TableFilter:
     def get_query_string(self):
         qs = ""
         if self.name:
-            qs = self.append_qs(qs, "name LIKE '%%{}%% '".format(self.name))
+            qs = self.append_qs(qs, "name LIKE '%{}% '".format(self.name))
         if self.year_min:
             qs = self.append_qs(qs, "year >= {}".format(self.year_min))
         if self.year_max:
@@ -155,7 +162,7 @@ class TableFilter:
         if self.price_max:
             qs = self.append_qs(qs, "price <= {}".format(self.price_max))
         if self.nameeng:
-            qs = self.append_qs(qs, "nameeng LIKE '%%{}%% '".format(self.nameeng))
+            qs = self.append_qs(qs, "nameeng LIKE '%{}% '".format(self.nameeng))
         if self.country_id:
             qs = self.append_qs(qs, "country_id = {}".format(self.country_id))
         if self.region_id:
@@ -166,10 +173,25 @@ class TableFilter:
             qs = self.append_qs(qs, "contractor_id = {}".format(self.contractor_id))
         if self.contractortype_id:
             qs = self.append_qs(qs, "contractortype_id = {}".format(self.contractortype_id))
+        if qs == "":
+            qs = "모든 사업 보기"
         return qs
 
     def get_text(self):
         return self.get_query_string() # must be changed later
+
+
+class QMyTableWidgetItem_Number(QTableWidgetItem):
+    def __lt__(self, other):
+        return int(self.text()) < int(other.text())
+
+
+class QMyTableWidgetItem_USD(QTableWidgetItem):
+    def __lt__(self, other):
+        usd1 = int(self.text().replace(',', '').replace('$', ''))
+        usd2 = int(other.text().replace(',', '').replace('$', ''))
+        return usd1 < usd2
+
 
 class QMyListWidgetItem (QListWidgetItem):
     def __init__(self):
@@ -423,7 +445,7 @@ class QMyFrameWidget(QWidget):
 
     def set_filter(self, filter):
         if filter is None:
-            self.ui_filter.setText("필터 없음 - 모든 사업 보기")
+            self.ui_filter.setText("모든 사업 보기")
         else:
             self.ui_filter.setText(filter.get_text())
 
@@ -436,6 +458,7 @@ class ProjectTableWidget(QTableWidget):
         column_headers = ['코드', '사업명', '연도', '금액', '수요국가', '자금출처', '사업자', '착수일', '종료일', '과업유형', '영문사업명', '비고']
         column_widths = [2, 15, 4, 8, 6, 8, 6, 6, 6, 8, 10, 10]
         self.setRowCount(0)
+        self.horizontalHeader().setSortIndicatorShown(True)
         self.setColumnCount(len(column_headers))
         self.horizontalHeader().setStyleSheet("::section{Background-color:rgb(190,200,220);}")
         self.horizontalHeader().setStretchLastSection(True)
@@ -555,20 +578,22 @@ class ProjectTableWidget(QTableWidget):
         data = self.projectData
         self.clearContents()
         self.setRowCount(0)
-
+        self.horizontalHeader().setSortIndicator(-1, 0)
+        self.setSortingEnabled(False)
         for index, row in data.df_project.iterrows():
             if self.check_filter(row) == True:
                 new_row_index = self.rowCount()
                 self.insertRow(new_row_index)
                 self.updateRow(new_row_index, row)
         self.resizeRowsToContents()
+        self.setSortingEnabled(True)
 
     def updateRow(self, row_index, row):
         data = self.projectData
-        self.setItem(row_index, 0, GetColItem(row['id'], True))
+        self.setItem(row_index, 0, GetColItem(row['id'], True, False, 1))
         self.setItem(row_index, 1, GetColItem(row['name']))
-        self.setItem(row_index, 2, GetColItem(row['year']))
-        self.setItem(row_index, 3, GetColItem('${:,}'.format(row['price']), True))
+        self.setItem(row_index, 2, GetColItem(row['year'], False, False, 1))
+        self.setItem(row_index, 3, GetColItem('${:,}'.format(row['price']), True, False, 2))
         self.setItem(row_index, 4, self.GetCountry(row['id'], data))
         self.setItem(row_index, 5, self.GetFundType(row['id'], data))
         self.setItem(row_index, 6, self.GetContractor(row['id'], data))
@@ -631,9 +656,12 @@ class ProjectTableWidget(QTableWidget):
             self.projectData.df_project_fund = dlg.projectData.df_project_fund
             self.projectData.df_project_tasktype = dlg.projectData.df_project_tasktype
             row = self.projectData.df_project[self.projectData.df_project['id'] == dlg.project_id].iloc[0]
+            self.setSortingEnabled(False)
             new_row_index = self.rowCount()
             self.insertRow(new_row_index)
             self.updateRow(new_row_index, row)
+            self.scrollToItem(self.item(new_row_index, 0))
+            self.setSortingEnabled(True)
 
     def edit_project(self, row_index):
         project_id = int(self.item(row_index, 0).text())  # Retrieve ID
@@ -1225,9 +1253,7 @@ class ModalEditorTableWidget(QTableWidget):
         self.tempData = parent.projectData.copy()
         self.changed = False
         self.table_type = table_type
-        self.init_ui()
-
-    def init_ui(self):
+        #self.horizontalHeader().setSortIndicatorShown(True)
         if self.table_type == 'contractor':
             column_headers = ['', '코드', '사업자명', '사업자 유형', '사업자 등록번호', '법인번호', '참조']
             column_widths = [1, 2, 8, 8, 8, 8, 5]
@@ -1327,11 +1353,13 @@ class ModalEditorTableWidget(QTableWidget):
         data = self.get_df()
         self.clearContents()
         self.setRowCount(0)
+        #self.setSortingEnabled(False)
         for index, row in data.iterrows():
             new_row_index = self.rowCount()
             self.insertRow(new_row_index)
             self.initRowWidget(new_row_index)
             self.updateRow(new_row_index, row)
+        #self.setSortingEnabled(True)
 
     def initRowWidget(self, row_index):
         check_box = QCheckBox()
@@ -1428,10 +1456,12 @@ class ModalEditorTableWidget(QTableWidget):
         df_temp = df_temp.append(values, ignore_index=True).astype(types)
         self.set_df(df_temp)
         # UI에 표시하기
+        self.setSortingEnabled(False)
         self.insertRow(new_row_index)
         self.initRowWidget(new_row_index)
         row = df_temp[df_temp['id'] == new_id].iloc[0]
         self.updateRow(new_row_index, row)
+        self.setSortingEnabled(True)
 
     def delete_row(self):
         #삭제 경고문 출력
