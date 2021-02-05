@@ -2,8 +2,8 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, QSizePolicy, QFileDialog
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
-from PyQt5.QtWidgets import QMessageBox, QWidget, QDialogButtonBox
-from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo
+from PyQt5.QtWidgets import QMessageBox, QWidget
+from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo, QFontMetrics
 from PyQt5.QtCore import Qt, QSize, QDate
 import sqlite3
 import pandas as pd
@@ -242,7 +242,11 @@ class MyMain(QMainWindow):
     def init_ui(self):
         self.ui_frame = QMyFrameWidget(self)
         self.ui_table = self.ui_frame.get_table_widget()
-        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        ft = self.font()
+        ft.setPixelSize(100)
+        qf = QFontInfo(ft)
+        print(qf.pixelSize(), qf.pointSize())
+        bsu = qf.pixelSize() / qf.pointSize() # font size ratio
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         menuDB = menubar.addMenu('&데이터베이스')
@@ -250,8 +254,8 @@ class MyMain(QMainWindow):
         menuContractor = menubar.addMenu('&사업자')
         menuEtc = menubar.addMenu('&항목관리')
         self.toolbar = self.addToolBar('Exit')
-        self.toolbar.setIconSize(QSize(pu//20*32, int(pu//20*32*1.2)))
-        self.toolbar.setStyleSheet("QToolBar{spacing:16px;}")
+        self.toolbar.setIconSize(QSize(bsu * 16, bsu * 16))
+        self.toolbar.setStyleSheet("QToolBar{{spacing:{}px;}}".format(int(bsu/4)))
 
         self.actions_selected = []
         self.add_command_ui('id_load', './res/load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
@@ -279,7 +283,7 @@ class MyMain(QMainWindow):
         self.setCentralWidget(self.ui_frame)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
         self.setWindowIcon(QIcon('./res/app.png'))
-        self.setGeometry(pu*12, pu*9, pu*60, pu*45)
+        self.setGeometry(100*bsu, 100*bsu, 400*bsu, 300*bsu)
 
         err = self.load_db(self.db_path)
         if err != '':
@@ -1206,6 +1210,7 @@ class AddListItemDialog(QDialog):
 
         if self.itemType == 'country':
             self.setWindowTitle("국가 추가")
+            self.setWindowIcon(QIcon("./res/country.png"))
             self.ui_combo_label.setText("국가")
             self.loadItems(self.projectData.df_country)
         elif self.itemType == 'contractor':
@@ -1215,6 +1220,7 @@ class AddListItemDialog(QDialog):
             self.loadItems(self.projectData.df_contractor)
         elif self.itemType == 'fundtype':
             self.setWindowTitle("자금유형 추가")
+            self.setWindowIcon(QIcon("./res/fundtype.png"))
             grid.addWidget(self.ui_number_label, 2, 0, 1, 2)
             grid.addWidget(self.ui_number, 3, 0, 1, 2)
             self.ui_combo_label.setText("자금유형")
@@ -1222,6 +1228,7 @@ class AddListItemDialog(QDialog):
             self.loadItems(self.projectData.df_fundtype, False)
         elif self.itemType == 'tasktype':
             self.setWindowTitle("과업유형 추가")
+            self.setWindowIcon(QIcon("./res/tasktype.png"))
             self.ui_combo_label.setText("과업유형")
             self.loadItems(self.projectData.df_tasktype)
 
