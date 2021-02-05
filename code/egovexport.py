@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, qApp, QDialog, Q
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView, QListWidget, QListWidgetItem
 from PyQt5.QtWidgets import QGridLayout, QLabel, QLineEdit, QDateEdit, QCheckBox, QPushButton, QComboBox, QHeaderView
 from PyQt5.QtWidgets import QMessageBox, QWidget
-from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo, QFontMetrics
+from PyQt5.QtGui import QIcon, QIntValidator, QFontInfo
 from PyQt5.QtCore import Qt, QSize, QDate
 import sqlite3
 import pandas as pd
@@ -31,6 +31,15 @@ def id_from_ui_combo(ui):
 
 def ShowWarning(self, msg):
     QMessageBox.warning(self, '전자정부 수출실적 DB', msg, QMessageBox.Close, QMessageBox.Close)
+
+def GetZoomRatio(self):
+    qf = QFontInfo(self.font())
+    szr = 0.75 / (qf.pointSize() / qf.pixelSize())  # windows screen zoom ratio
+    return szr
+
+def GetFontSize(self):
+    qf = QFontInfo(self.font())
+    return GetZoomRatio(self) * qf.pixelSize()
 
 def GetColItem(value, isRight=False, isReadOnly=False, sort_type=0):
     text = ''
@@ -242,11 +251,7 @@ class MyMain(QMainWindow):
     def init_ui(self):
         self.ui_frame = QMyFrameWidget(self)
         self.ui_table = self.ui_frame.get_table_widget()
-        ft = self.font()
-        ft.setPixelSize(100)
-        qf = QFontInfo(ft)
-        print(qf.pixelSize(), qf.pointSize())
-        bsu = qf.pixelSize() / qf.pointSize() # font size ratio
+        szr = GetZoomRatio(self)  # windows screen zoom ratio
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         menuDB = menubar.addMenu('&데이터베이스')
@@ -254,8 +259,8 @@ class MyMain(QMainWindow):
         menuContractor = menubar.addMenu('&사업자')
         menuEtc = menubar.addMenu('&항목관리')
         self.toolbar = self.addToolBar('Exit')
-        self.toolbar.setIconSize(QSize(bsu * 16, bsu * 16))
-        self.toolbar.setStyleSheet("QToolBar{{spacing:{}px;}}".format(int(bsu/4)))
+        self.toolbar.setIconSize(QSize(szr * 16, szr * 16))
+        self.toolbar.setStyleSheet("QToolBar{{spacing:{}px;}}".format(int(szr*16/4)))
 
         self.actions_selected = []
         self.add_command_ui('id_load', './res/load.png', '불러오기', 'Ctrl+l', self.event_load_db, menuDB, self.toolbar)
@@ -283,7 +288,7 @@ class MyMain(QMainWindow):
         self.setCentralWidget(self.ui_frame)
         self.setWindowTitle('전자정부 수출실적 데이터베이스')
         self.setWindowIcon(QIcon('./res/app.png'))
-        self.setGeometry(100*bsu, 100*bsu, 400*bsu, 300*bsu)
+        self.setGeometry(100*szr, 100*szr, 800*szr, 600*szr)
 
         err = self.load_db(self.db_path)
         if err != '':
@@ -434,9 +439,9 @@ class QMyFrameWidget(QWidget):
         self.projectData = parent.projectData
         self.ui_table = None
         self.ui_table = ProjectTableWidget(self)
-        self.ui_filter = QLineEdit()
+        self.ui_filter = QLineEdit(self)
         self.ui_filter.setReadOnly(True)
-        grid = QGridLayout()
+        grid = QGridLayout(self)
         grid.setContentsMargins(4, 4, 4, 4)
         grid.setSpacing(4)
         self.setLayout(grid)
@@ -469,9 +474,10 @@ class ProjectTableWidget(QTableWidget):
         self.verticalHeader().setStyleSheet("::section{Background-color:rgb(195,220,235);}")
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        pu = QFontInfo(self.font()).pixelSize()  # pixel unit, width of a single letter in pixel
+        szr = GetZoomRatio(self) # windows screen zoom ratio
+        col_size_unit = GetFontSize(self);
         for i in range(len(column_widths)):
-            column_widths[i] *= pu
+            column_widths[i] *= col_size_unit
         self.setHorizontalHeaderLabels(column_headers)
         for index in range(0, len(column_widths)):
             self.setColumnWidth(index, column_widths[index])
@@ -919,7 +925,7 @@ class ProjectFormDialog(QDialog):
         self.ui_cancel.setMinimumHeight(30)
         self.ui_cancel.clicked.connect(self.event_btn_cancel)
         # Initialize UI Layout
-        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        pu = GetFontSize(self)
         self.resize(pu*40, pu*30)
         grid = QGridLayout()
         self.setLayout(grid)
@@ -1198,7 +1204,7 @@ class AddListItemDialog(QDialog):
 
         grid = QGridLayout()
         self.setLayout(grid)
-        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        pu = GetFontSize(self) # pixel unit, width of a single letter in pixel
         if self.itemType == 'fundtype':
             self.resize(pu*16, pu*11)
         else:
@@ -1288,7 +1294,7 @@ class ModalEditorTableWidget(QTableWidget):
         else:
             ShowWarning("해당하는 항목정보가 없습니다.")
             return
-        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        pu = GetFontSize(self) # pixel unit, width of a single letter in pixel
         for i in range(len(column_widths)):
             column_widths[i] *= pu
         self.setRowCount(0)
@@ -1625,7 +1631,7 @@ class ModalEditorDialog(QDialog):
         grid.addWidget(self.ui_delete, 1, 1, 1, 1)
         grid.addWidget(self.ui_apply, 1, 3, 1, 1)
         grid.addWidget(self.ui_close, 1, 4, 1, 1)
-        pu = QFontInfo(self.font()).pixelSize() # pixel unit, width of a single letter in pixel
+        pu = GetFontSize(self)
         self.resize(pu*32, pu*24)
         title_text = '기타'
         icon_path = 'app.png'
